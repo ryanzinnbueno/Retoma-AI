@@ -1,7 +1,111 @@
 .integration-notice{display:flex;gap:1rem;background:#edf6f3;border:1px solid #c9dfd6;padding:1.25rem;border-radius:16px;margin:1.5rem 0}.integration-notice p{margin:.5rem 0 0}.tutorial-flow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;margin:1.5rem 0}.tutorial-flow article{padding:1.5rem;border:1px solid #dce6e1;border-radius:16px;background:white}.tutorial-flow p,.product-card p,.settings-section p{line-height:1.65}.guided-checks{border:0;padding:0;display:flex;flex-wrap:wrap;gap:.8rem;margin:1.25rem 0}.guided-checks legend{font-weight:600;margin-bottom:.75rem}.guided-checks label{display:flex;align-items:center;gap:.5rem;font-size:.9rem}.catalogue-filters{display:flex;gap:1rem;align-items:end;margin-top:1.5rem}.catalogue-filters>*{flex:1}.catalogue-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;margin:1.5rem 0}.product-card{padding:1.5rem;display:flex;flex-direction:column;align-items:start}.product-card h3{margin:.5rem 0}.product-card .btn{margin-top:auto}.product-sheet{width:min(560px,100vw)!important;max-width:none!important;overflow-y:auto;padding:1.5rem!important}.product-sheet form{display:grid;gap:1rem;margin-top:1rem}.product-sheet details{border:1px solid #dce6e1;padding:1rem;border-radius:12px}.product-sheet summary{font-weight:600;cursor:pointer}.sync-banner{padding:.65rem 1.25rem;background:#edf6f3;font-size:.9rem;display:flex;gap:1rem;align-items:center}.sync-banner.error{background:#fff2dc;color:#754c09}.text-link{text-decoration:underline;color:inherit}.follow-context{display:grid;gap:.75rem}.follow-context .field{font-size:.85rem}.status-notice{padding:.75rem;background:#f3f6f4;border-radius:8px}.result-counters{display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;margin-bottom:1.25rem}.result-counters article{padding:1rem;background:white;border:1px solid #dce6e1;border-radius:12px}.result-counters strong{display:block;font-size:1.8rem}
 @media(max-width:1000px){.catalogue-grid,.tutorial-flow{grid-template-columns:repeat(2,minmax(0,1fr))}.result-counters{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:640px){.catalogue-grid,.tutorial-flow,.result-counters{grid-template-columns:1fr}.catalogue-filters{flex-direction:column;align-items:stretch}.section-tabs{flex-wrap:wrap;height:auto}.settings-layout,.two-fields{grid-template-columns:1fr!important}.interval-grid{grid-template-columns:repeat(2,1fr)}.page-title h1{font-size:1.8rem}.product-sheet{padding:1rem!important}}
-.retoma-workspace-style-marker{--revision:7}
+/* Shared visual language across every Retoma surface. */
+.retoma-shell .content-page .page-title{padding:24px 0 20px}
+.retoma-shell .content-page h1{font-size:1.7rem;letter-spacing:-.6px}
+.retoma-shell .content-page .page-title p{color:#5b7264;font-size:.9375rem;line-height:1.6}
+.retoma-shell .content-page .surface,.retoma-shell .content-page .tutorial-flow article{border:1px solid var(--retoma-card-border);border-radius:var(--retoma-card-radius);box-shadow:var(--retoma-card-shadow);background:#fff;min-width:0}
+.retoma-shell .content-page .btn,.retoma-dialog .btn,.product-sheet .btn,.notifications-sheet .btn{min-height:44px;border-radius:10px;padding:11px 16px;font-size:.875rem;line-height:1.45;gap:8px;white-space:normal}
+.retoma-shell .content-page .btn.primary,.retoma-dialog .btn.primary,.product-sheet .btn.primary{font-weight:600;box-shadow:0 4px 10px #1b5c3e18}
+.retoma-shell .content-page .icon-btn{min-width:44px;min-height:44px;border-radius:10px}
+.retoma-shell .content-page .section-tabs{padding:6px!important;gap:6px;height:auto!important;background:#fff!important;border:1px solid var(--retoma-card-border);border-radius:13px!important;flex-wrap:wrap;overflow:visible;margin-bottom:22px}
+.retoma-shell .content-page .section-tabs button{min-height:44px;height:auto!important;padding:11px 16px!important;border-radius:9px!important;color:#597061!important;font-size:.875rem!important}
+.retoma-shell .content-page .section-tabs button[data-active],.retoma-shell .content-page .section-tabs button[aria-selected=true]{background:#e7f1eb!important;color:#245b3f!important}
+.retoma-shell .content-page .section-tabs button:before{display:none}
+.retoma-shell .content-page .overview-metrics{gap:16px}
+.retoma-shell .content-page .overview-metrics article{border:1px solid var(--retoma-card-border);border-radius:16px;box-shadow:var(--retoma-card-shadow);padding:24px;background:#fff}
+.retoma-shell .content-page .overview-metrics .metric-feature{background:linear-gradient(120deg,#173e30,#2c6248);border-color:#285b43;color:white}
+.retoma-shell .content-page .overview-metrics .metric-feature :is(span,strong,p,svg){color:#e5f2e5}
+.retoma-shell .content-page .overview-metrics article:nth-child(2){border-top:4px solid #c79647}
+.retoma-shell .content-page .overview-metrics article:nth-child(3){border-top:4px solid #4c8a65}
+.retoma-shell .content-page .overview-metrics article:nth-child(4){background:#f2eef8;border-color:#ded4ee}
+.retoma-shell .content-page .overview-metrics article:not(.metric-feature) strong{color:#244e37;font-size:2rem}
+.retoma-shell .content-page .overview-metrics article:not(.metric-feature) p{color:#627768}
+.retoma-shell .content-page .overview-metrics article>span{color:#4d6857;font-size:.875rem}
+.retoma-shell .content-page .opportunities{overflow:hidden}
+.retoma-shell .content-page .table-top{padding:20px;gap:14px;background:#fafcfb;border-bottom:1px solid #dce6df}
+.retoma-shell .content-page .filter-tabs{height:auto;background:#edf3ef;padding:5px;border-radius:10px;gap:4px}
+.retoma-shell .content-page .filter-tabs button{min-height:40px;padding:9px 13px!important;font-size:.875rem!important;border-radius:8px!important}
+.retoma-shell .content-page .opportunities th{background:#f1f5f2;color:#4e6657;font-size:.8125rem;letter-spacing:.025em;padding:16px}
+.retoma-shell .content-page .opportunities td{padding:18px 16px;border-color:#e5ece7;color:#35523e;font-size:.9375rem}
+.retoma-shell .content-page .opportunities tbody tr:hover{background:#f4f8f5}
+.retoma-shell .content-page .table-meta,.retoma-shell .content-page .table-client small{color:#677b6d;font-size:.8125rem}
+.retoma-shell .content-page .table-owner{padding:7px 10px;border-radius:8px;background:#eaf3ed;color:#386347;font-size:.8125rem}
+.retoma-shell .content-page .table-owner.attention{background:#f1eaf7;color:#72578d}
+.retoma-shell .content-page .result-counters{gap:14px}
+.retoma-shell .content-page .result-counters article{padding:20px;border:1px solid var(--retoma-card-border);border-top:3px solid #86a996;border-radius:14px;box-shadow:var(--retoma-card-shadow);font-size:.875rem;color:#55705f}
+.retoma-shell .content-page .result-counters article:nth-child(3){border-top-color:#8c70af;background:#f5f1fa}
+.retoma-shell .content-page .result-counters article:nth-child(4){background:#eaf4ed;border-top-color:#428760}
+.retoma-shell .content-page .result-counters strong{font-size:2rem;color:#284e38;margin-top:8px}
+.retoma-shell .content-page .sales-feature{border-radius:18px;background:linear-gradient(125deg,#173e30,#2c6248);padding:30px;box-shadow:var(--retoma-card-shadow)}
+.retoma-shell .content-page .sales-feature :is(p,.eyebrow,.sales-note){color:#d7e7db}
+.retoma-shell .content-page .sales-feature>strong{color:#f3f8ef;overflow-wrap:anywhere}
+.retoma-shell .content-page .sales-feature .round-icon{background:#ffffff16;color:#dbeec1}
+.retoma-shell .content-page .distribution,.retoma-shell .content-page .sold-list{padding:26px}
+.retoma-shell .content-page .section-heading p{color:#61766a;font-size:.875rem}
+.retoma-shell .content-page .sold-row{padding:18px 12px;margin:8px 0;border:1px solid #e1e9e3;border-radius:12px;background:#f9fbf9}
+.retoma-shell .content-page .sold-row small{color:#687d6e}
+.retoma-shell .content-page .integration-notice{background:#fff6e7;border:1px solid #ead2a5;border-left:4px solid #c89442;border-radius:14px;color:#77572c;align-items:flex-start;margin:0 0 22px}
+.retoma-shell .content-page .integration-notice p{font-size:.9375rem;line-height:1.65}
+.retoma-shell .content-page .tutorial-flow{gap:16px}
+.retoma-shell .content-page .tutorial-flow article{padding:24px;border-top:3px solid #65967a}
+.retoma-shell .content-page .tutorial-flow article:nth-child(5){border-top-color:#8c70af;background:#f6f3fa}
+.retoma-shell .content-page .tutorial-flow .number-disc{width:36px;height:36px;border-radius:11px;background:#e5f0e9;color:#37664a;font-size:.875rem;font-weight:700;margin-bottom:14px}
+.retoma-shell .content-page .tutorial-flow h3{font-size:1.05rem;margin-bottom:8px;color:#2d513b}
+.retoma-shell .content-page .tutorial-flow p{font-size:1rem;color:#5b7262}
+.retoma-shell .content-page .settings-section{padding:26px}
+.retoma-shell .content-page .settings-section>h2{padding-bottom:16px;margin-bottom:12px;border-bottom:1px solid #e0e9e3;color:#2e573e;font-size:1.1rem}
+.retoma-shell .content-page .settings-section>h3{margin:22px 0 12px;color:#355d43}
+.retoma-shell .content-page .settings-section>p{color:#5c7364;font-size:.9375rem;margin:12px 0}
+.retoma-shell .content-page .settings-section>.pill{margin-bottom:14px}
+.retoma-shell .content-page .education-grid{padding:8px 0 22px;gap:16px}
+.retoma-shell .content-page .education-grid article{padding:20px;background:#f1f6f3;border:1px solid #dde8e0;border-radius:13px}
+.retoma-shell .content-page .education-grid article:nth-child(1){background:#f3eff8;border-color:#e2d9ed}
+.retoma-shell .content-page .education-grid svg{color:#4e785c;margin-bottom:12px}
+.retoma-shell .content-page .education-grid h3{color:#345c41}
+.retoma-shell .content-page .education-grid p{font-size:.9375rem;color:#5d7363}
+.retoma-shell .content-page .field,.product-sheet .field,.retoma-dialog .field{color:#48644f;font-size:.875rem;font-weight:500}
+.retoma-shell .content-page .field>input,.retoma-shell .content-page .field>textarea,.product-sheet .field>textarea,.retoma-dialog .field>input,.retoma-dialog .field>textarea{background:#f8fbf9;border:1px solid #cfddd3;border-radius:10px;min-height:44px;padding:11px 13px;color:#294e37;font-size:1rem}
+.retoma-shell .content-page .field select,.product-sheet select,.retoma-dialog select{min-height:44px;height:auto;border-radius:10px;background:#f8fbf9;border-color:#cfddd3;color:#365c42;font-size:.9375rem}
+.retoma-shell .content-page .search-box{min-height:44px;background:#f7faf8;border:1px solid #d6e2d9;border-radius:10px}
+.retoma-shell .content-page .toggle-row{padding:18px;border:1px solid #dce7df;border-radius:12px;background:#f2f7f4;margin:18px 0}
+.retoma-shell .content-page .toggle-row b{color:#365f44;font-weight:600}
+.retoma-shell .content-page .toggle-row p{color:#607869;font-size:.875rem}
+.retoma-shell .content-page .fixed-rule{background:#f5f8f6;border:1px solid #e1e9e4;border-radius:10px;padding:12px;color:#526e5c;font-size:.875rem;margin:8px 0}
+.retoma-shell .content-page .inline-tip{border-radius:12px;background:#edf5f0;border-color:#d6e5db;color:#526e5c;font-size:.875rem}
+.retoma-shell .content-page .guided-checks{gap:8px;padding:16px;background:#f6f9f7;border:1px solid #dfe8e2;border-radius:12px}
+.retoma-shell .content-page .guided-checks legend{padding:0 6px;color:#46624e;font-size:.875rem}
+.retoma-shell .content-page .guided-checks label{min-height:40px;padding:8px 10px;border:1px solid #d9e5dc;border-radius:9px;background:white;color:#4e6958}
+.retoma-shell .content-page .guided-checks label:has([data-checked]){background:#e3f0e8;border-color:#86b496}
+.retoma-shell .content-page .interval-grid .field{background:#edf5f0;border:1px solid #d7e5dc;border-radius:12px;color:#41634d}
+.retoma-shell .content-page .settings-save{padding:18px 22px;border-radius:14px;border:1px solid #cedfd3;background:#eaf3ed;box-shadow:0 3px 10px #173e3006}
+.retoma-shell .content-page .settings-save>span{font-size:.875rem;color:#526d5b}
+.retoma-shell .content-page .catalogue-filters{padding:16px 20px;border:1px solid var(--retoma-card-border);border-radius:14px;background:#fff;margin:0 0 16px;gap:16px}
+.retoma-shell .content-page .catalogue-filters .field{margin:0}
+.retoma-shell .content-page .product-card{padding:22px;gap:12px;border-top:3px solid #759c84}
+.retoma-shell .content-page .product-card>small{padding:5px 9px;background:#eaf2ed;border-radius:7px;color:#55735d;font-size:.75rem}
+.retoma-shell .content-page .product-card h3{font-size:1.1rem;line-height:1.4;margin:0;color:#2d543b}
+.retoma-shell .content-page .product-card p{font-size:.9375rem;line-height:1.65;color:#5d7263}
+.retoma-shell .content-page .product-card .product-pending{padding:12px;border-radius:10px;background:#fbf5e9;color:#806539;font-size:.875rem;width:100%}
+.retoma-shell .content-page .product-card .btn{margin-top:auto}
+.product-sheet,.retoma-dialog,.notifications-sheet{color:#2d5039!important;background:#f7faf8!important}
+.product-sheet [data-slot=sheet-title],.notifications-sheet [data-slot=sheet-title]{color:#294d36;font-size:1.3rem}
+.product-sheet [data-slot=sheet-description],.retoma-dialog [data-slot=dialog-description],.notifications-sheet [data-slot=sheet-description]{color:#617668;font-size:.9375rem;line-height:1.65}
+.product-sheet details{border:1px solid #d7e3db;border-radius:14px;background:white;padding:18px}
+.product-sheet details summary{min-height:32px;font-size:.9375rem;color:#375d43}
+.product-sheet p,.product-sheet small{color:#607568;line-height:1.6}
+.product-sheet .guided-checks label{padding:8px;border-radius:8px;background:#eef5f0;color:#42634c}
+.retoma-dialog{border:1px solid #d5e3da!important;border-radius:18px!important}
+.retoma-dialog .activation-context,.retoma-dialog .consent-line{background:#eaf3ed;border-color:#cbded1;border-radius:12px;color:#42644d}
+.retoma-dialog .activation-checklist{color:#5b7561}
+.notifications-sheet .notification-cards article{border:1px solid #e5d7b9;border-left:4px solid #c99540;border-radius:14px;box-shadow:var(--retoma-card-shadow)}
+.notifications-sheet .notification-cards h3{color:#74572d;font-size:1rem}
+.notifications-sheet .notification-cards p,.notifications-sheet .notification-cards blockquote{color:#586f5e}
+.retoma-shell .notification-button{height:44px;width:44px;border-radius:12px;background:#ffffff0a}
+.retoma-shell .main-nav button{min-height:44px}
+@media(max-width:1000px){.retoma-shell .content-page .result-counters{grid-template-columns:repeat(3,minmax(0,1fr))}.retoma-shell .content-page .catalogue-filters{flex-wrap:wrap}.retoma-shell .content-page .catalogue-filters>*{min-width:180px}}
+@media(max-width:680px){.retoma-shell .content-page h1{font-size:1.5rem}.retoma-shell .content-page .surface,.retoma-shell .content-page .tutorial-flow article{border-radius:14px}.retoma-shell .content-page .settings-section,.retoma-shell .content-page .distribution,.retoma-shell .content-page .sold-list{padding:20px}.retoma-shell .content-page .section-tabs{gap:4px}.retoma-shell .content-page .section-tabs button{flex:1 1 auto!important;padding:10px!important}.retoma-shell .content-page .overview-metrics{gap:12px}.retoma-shell .content-page .overview-metrics article{padding:18px}.retoma-shell .content-page .result-counters{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.retoma-shell .content-page .result-counters article{padding:16px}.retoma-shell .content-page .result-counters article:last-child{grid-column:1/-1}.retoma-shell .content-page .catalogue-filters{padding:16px;align-items:stretch}.retoma-shell .content-page .catalogue-filters>*{min-width:0;width:100%}.retoma-shell .content-page .table-top{padding:14px}.retoma-shell .content-page .settings-save{padding:16px}.retoma-shell .content-page .tutorial-flow article{padding:20px}.retoma-shell .content-page .education-grid{padding:0 0 18px}.retoma-shell .content-page .product-card{padding:20px}.retoma-shell .content-page .sales-feature{padding:24px}}
 /* Retoma conversation cockpit: clear surfaces, consistent controls, progressive detail. */
 .workspace-page{--panel-border:#dce6df;--panel-shadow:0 6px 24px #163c3010}
 .workspace-page .page-title{padding:22px 0 18px}
