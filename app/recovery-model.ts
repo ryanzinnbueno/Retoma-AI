@@ -1,13 +1,14 @@
 export const statuses = ['Parado', 'Conversando', 'Vendido', 'Encerrado'] as const;
 export type Status = typeof statuses[number];
-export type Message = { role: 'cliente' | 'vendedor' | 'ia'; text: string; kind?: 'quote'; provider?: string };
+export type Message = { role: 'cliente' | 'vendedor' | 'ia'; text: string; kind?: 'quote'; provider?: string; id?:string; delivery?:'demo'|'suggested'; action?:string; references?:string[] };
 export type Lead = {
- id: number; name: string; company: string; service: string; value: number; date: string;
+ id: number; name: string; company: string; service: string; value: number|null; date: string; reference?:string; valueConfirmed?:boolean; productId?:string|null; recoveryPaused?:boolean;
  status: Status; ai: boolean; consent: boolean; optOut: boolean; due: string; attempts: number;
  aiSummary?: string; reason: string; needsHuman: boolean; notes: string; messages: Message[]; history: string[];
 };
 export type Knowledge = { id: number; question: string; answer: string };
 export type Config = {
+ business?: import('./business-model').Business;
  company: string; assistant: string; region: string; hours: string; offer: string; excluded: string;
  tone: string; objective: string; limits: string; handoff: string; days: number[];
  followups: boolean; priceHandoff: boolean; knowledge: Knowledge[]; version: number;
@@ -32,7 +33,7 @@ export const initialLeads: Lead[] = [
  {id:4,name:'Beatriz Souza',company:'Flora Boutique',service:'Letras-caixa com LED',value:1250,date:'2026-08-29',status:'Vendido',ai:false,consent:true,optOut:false,due:'Concluído',attempts:1,reason:'',needsHuman:false,notes:'Proposta aceita. Vendedor confirmou o fechamento.',messages:[{role:'cliente',text:'Pode fechar! Vamos seguir com o letreiro em LED.'},{role:'vendedor',text:'Combinado! Vou organizar os próximos passos.'}],history:['Cliente confirmou interesse.','Vendedor alterou o status para Vendido.']},
  {id:5,name:'Pedro Alves',company:'Alves Auto',service:'Fachada em ACM',value:3600,date:'2026-09-03',status:'Parado',ai:false,consent:false,optOut:false,due:'Amanhã',attempts:0,reason:'',needsHuman:false,notes:'Proposta enviada. Ainda não iniciou acompanhamento.',messages:[{role:'cliente',text:'Vou avaliar a proposta e te retorno.'}],history:['Orçamento cadastrado.']}
 ];
-export const money=(value:number)=>value.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+export const money=(value:number|null)=>value===null?'Valor não informado':value.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 export const normalize=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
 export const terminal=(lead:Lead)=>lead.status==='Vendido'||lead.status==='Encerrado';
 export function changeStatus(lead:Lead,status:Status):Lead {

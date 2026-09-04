@@ -1,0 +1,7 @@
+export type KnowledgeRecord={id:string;subject:string;concepts:string[];questions:string[];faq:string[];objections:string[];limitations:string[];handoff:string[];source:string;reviewedAt:string;version:number;status:'approved'|'draft'};
+export const centralKnowledge:KnowledgeRecord[]=[
+ {id:'method-1',subject:'Atendimento',concepts:['Responder à pergunta antes de investigar.','Usar histórico e fazer no máximo duas perguntas.'],questions:['Qual informação ainda falta?'],faq:[],objections:['Achei caro: investigar se excede o planejado ou se há comparação, sem desconto automático.'],limitations:['Não inventar informações, urgência, condições ou benefícios.'],handoff:['Humano solicitado','Informação crítica desconhecida'],source:'Especificação consolidada do proprietário do Retoma',reviewedAt:'2026-09-04',version:1,status:'approved'},
+ ...['Fachadas em ACM','Banners','Adesivos'].map((subject,i)=>({id:'technical-'+i,subject,concepts:[],questions:[],faq:[],objections:[],limitations:['Conteúdo técnico pendente de revisão pelo administrador do SaaS.'],handoff:['Dúvida técnica sem fonte aprovada'],source:'Pendente de fonte técnica e aprovação do administrador',reviewedAt:'',version:1,status:'draft' as const}))
+];
+export function retrieveKnowledge(question:string){return centralKnowledge.filter(r=>r.status==='approved'&&(r.subject==='Atendimento'||question.toLowerCase().includes(r.subject.toLowerCase()))).slice(0,3);}
+
