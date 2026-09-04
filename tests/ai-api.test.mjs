@@ -69,14 +69,33 @@ test('duplicate in-flight event cannot release the processing lock',async()=>{
  assert.equal(sqlite.prepare('SELECT status FROM events WHERE owner=? AND id=?').get('inflight',body.messageId).status,'processing');
  finish(fake());assert.equal((await first).status,200);
 });
-test('human request pauses without external transfer claim; optout survives generic edits',async()=>{
+test('human request alerts without pausing; optout survives generic edits',async()=>{
  await setup('safety');globalThis.fetch=()=>{throw Error('Must not call provider')};
  let r=await api.POST(req('safety',payload('Quero falar com uma pessoa.')));assert.equal(r.status,200);
- let s=await state.load('safety');assert.equal(s.data.leads[0].ai,false);assert.equal(s.data.leads[0].needsHuman,true);
+ let s=await state.load('safety');assert.equal(s.data.leads[0].ai,true);assert.equal(s.data.leads[0].needsHuman,true);
  r=await api.POST(req('safety',payload('Não quero receber mais mensagens.')));assert.equal(r.status,200);
  s=await state.load('safety');s.data.leads[0].optOut=false;s.data.leads[0].ai=true;await state.save('safety',s.revision,s.data);
  assert.equal((await state.load('safety')).data.leads[0].optOut,true);
  assert.equal((await api.POST(req('safety',{...payload('Retome'),mode:'followup'}))).status,409);
+});
+test('pending seller alert survives other questions; takeover prevents even forced replies',async()=>{
+ await setup('continue');
+ const human=payload('Quero falar com uma pessoa.');
+ assert.equal((await api.POST(req('continue',human))).status,200);
+ let s=await state.load('continue');const reason=s.data.leads[0].reason;
+ const count=s.data.leads[0].messages.filter(m=>m.role==='ia').length;
+ assert.equal((await api.POST(req('continue',payload(human.question)))).status,200);
+ s=await state.load('continue');assert.equal(s.data.leads[0].messages.filter(m=>m.role==='ia').length,count);
+ globalThis.fetch=async(url,options)=>{assert.match(JSON.parse(options.body).systemInstruction.parts[0].text,/Já existe um alerta/);return fake('Atendemos Goiânia e região metropolitana.','reply');};
+ assert.equal((await api.POST(req('continue',payload('Qual região vocês atendem?')))).status,200);
+ s=await state.load('continue');let l=s.data.leads[0];
+ assert.equal(l.ai,true);assert.equal(l.needsHuman,true);assert.equal(l.reason,reason);assert.match(l.aiSummary,/Pendência para o vendedor/);assert.match(l.messages.at(-1).text,/Goiânia/);
+ l.ai=false;l.needsHuman=false;await state.save('continue',s.revision,s.data);
+ globalThis.fetch=()=>{throw Error('Seller owns conversation')};
+ const before=l.messages.filter(m=>m.role==='ia').length;
+ assert.equal((await api.POST(req('continue',payload('Quero falar com o vendedor.')))).status,200);
+ assert.equal((await api.POST(req('continue',payload('Onde vocês atendem?')))).status,200);
+ l=(await state.load('continue')).data.leads[0];assert.equal(l.messages.filter(m=>m.role==='ia').length,before);assert.equal(l.ai,false);
 });
 test('failed provider records inbound once and controlled retry completes once',async()=>{
  await setup('retry');globalThis.fetch=async()=>Response.json({error:{}},{status:429});

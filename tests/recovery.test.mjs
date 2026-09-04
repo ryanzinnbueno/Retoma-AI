@@ -26,14 +26,14 @@ test('AI answers with approved knowledge and stops followup sequence',()=>{
  assert.equal(l.messages.at(-1).text,config().knowledge[0].answer);
  assert.equal(followup(l,config()),l);
 });
-test('price objection pauses AI and delivers reason to seller',()=>{
+test('price objection alerts seller while AI stays available',()=>{
  const l=receiveMessage(activate(lead(),true),'Consegue um desconto de 10%?',config());
- assert.equal(l.ai,false);assert.equal(l.needsHuman,true);assert.match(summarize(l).reason,/negociação/);
+ assert.equal(l.ai,true);assert.equal(l.needsHuman,true);assert.match(summarize(l).reason,/negociação/);
 });
 test('seller request or unknown answer escalates with context',()=>{
  for(const text of ['Quero falar com um vendedor.','Qual a espessura exata do material?']){
   const l=receiveMessage(activate(lead(),true),text,config());
-  assert.equal(l.ai,false);assert.equal(l.needsHuman,true);assert.equal(summarize(l).last,text);
+  assert.equal(l.ai,true);assert.equal(l.needsHuman,true);assert.equal(summarize(l).last,text);
  }
 });
 test('opt-out cancels all future automation even if manually reopened',()=>{

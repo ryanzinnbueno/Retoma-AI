@@ -33,19 +33,24 @@ export async function POST(req:Request){
    snapshot=await commit(owner,snapshot.revision,snapshot.data);
   }
   const forced=mode==='reply'?mandatory(question):null;
-  if(!forced&&(!lead.ai||!lead.consent||b.paused||lead.needsHuman)){
+  if(forced?.action!=='stop'&&(!lead.ai||!lead.consent||b.paused)){
    await db().prepare("UPDATE events SET status='done',result=? WHERE owner=? AND id=?").bind(JSON.stringify({action:'manual'}),owner,eventId).run();return json(snapshot);
   }
+  const repeatedHumanRequest=forced?.action==='handoff'&&lead.needsHuman&&lead.messages.some(m=>m.role==='cliente'&&m.id!==eventId&&m.text.trim().toLowerCase()===question.trim().toLowerCase());
   const result=forced||validateDecision(snapshot.data.config,lead,question,await generate(snapshot.data.config,lead,question,mode));
+  if(forced?.action==='handoff')result.summary=`Assunto: ${lead.service}. Contexto: ${lead.notes||'Não informado'}. Conversa recente: ${lead.messages.slice(-6).map(m=>m.role+': '+m.text).join(' | ')}. Pendente: ${result.reason}`.slice(0,4000);
   const latest=await load(owner);const current=latest.data.leads.find(l=>l.id===leadId);
-  if(latest.revision!==snapshot.revision||!current||current.optOut||terminal(current)||(!forced&&(!current.ai||!current.consent||business(latest.data.config).paused))){await db().prepare("UPDATE events SET status='cancelled',result=? WHERE owner=? AND id=?").bind(JSON.stringify({reason:'Estado alterado antes da conclusão.'}),owner,eventId).run();throw new AppError(409,'A resposta foi descartada porque a conversa ou configuração mudou.');}
+  if(latest.revision!==snapshot.revision||!current||current.optOut||terminal(current)||(forced?.action!=='stop'&&(!current.ai||!current.consent||business(latest.data.config).paused))){await db().prepare("UPDATE events SET status='cancelled',result=? WHERE owner=? AND id=?").bind(JSON.stringify({reason:'Estado alterado antes da conclusão.'}),owner,eventId).run();throw new AppError(409,'A resposta foi descartada porque a conversa ou configuração mudou.');}
+  const pending=result.action!=='stop'&&(current.needsHuman||result.action==='handoff');
+  const reason=result.action==='stop'?result.reason:current.needsHuman?(result.action==='handoff'&&!current.reason.includes(result.reason)?`${current.reason}\n${result.reason}`.slice(0,4000):current.reason):result.reason;
+  const silent=repeatedHumanRequest||(result.action==='stop'&&(!current.ai||!current.consent||business(latest.data.config).paused));
   const next:Lead={...current,status:result.action==='stop'?'Encerrado':mode==='followup'?'Parado':'Conversando',
-   ai:result.action==='handoff'||result.action==='stop'?false:current.ai,optOut:result.action==='stop',
-   recoveryPaused:result.action==='stop'||result.action==='handoff'?true:current.recoveryPaused,needsHuman:result.action==='handoff',
-   reason:result.reason,aiSummary:result.summary,attempts:mode==='followup'?current.attempts+1:current.attempts,
-   due:result.action==='stop'?'Não contatar':result.action==='handoff'?'Ação do vendedor':mode==='followup'?'Aguardando cliente':'Em conversa',
-   messages:[...current.messages,{id:eventId+'-reply',role:'ia',text:result.text,provider:result.provider,delivery:'demo',action:result.action,references:result.references}],
-   history:[...current.history,result.action==='handoff'?'Necessidade de vendedor registrada internamente. Nenhuma notificação externa enviada.':result.action==='stop'?'Recusa registrada. Novos contatos bloqueados.':mode==='followup'?'Retomada de teste gerada; não enviada ao WhatsApp.':'Resposta de teste gerada; não enviada ao WhatsApp.']};
+   ai:result.action==='stop'?false:current.ai,optOut:result.action==='stop',
+   recoveryPaused:result.action==='stop'||pending?true:current.recoveryPaused,needsHuman:pending,
+   reason,aiSummary:pending?`${result.summary}\nPendência para o vendedor: ${reason}`.slice(0,4000):result.summary,attempts:mode==='followup'?current.attempts+1:current.attempts,
+   due:result.action==='stop'?'Não contatar':pending?'Ação do vendedor · IA disponível':mode==='followup'?'Aguardando cliente':'Em conversa',
+   messages:silent?current.messages:[...current.messages,{id:eventId+'-reply',role:'ia',text:result.text,provider:result.provider,delivery:'demo',action:result.action,references:result.references}],
+   history:repeatedHumanRequest?current.history:[...current.history,result.action==='handoff'?(current.needsHuman?'Pendência do vendedor atualizada. IA continua disponível.':'Alerta interno ao vendedor registrado. IA continua disponível para outras dúvidas. Nenhuma notificação externa enviada.'):result.action==='stop'?'Recusa registrada. Novos contatos bloqueados.':mode==='followup'?'Retomada de teste gerada; não enviada ao WhatsApp.':'Resposta de teste gerada; não enviada ao WhatsApp.']};
   latest.data.leads=latest.data.leads.map(l=>l.id===leadId?next:l);
   // Atomic compare-and-swap: a seller taking over always invalidates this generated result.
   const saved=await commit(owner,latest.revision,latest.data);

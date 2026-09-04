@@ -66,10 +66,10 @@ export function receiveMessage(lead:Lead,text:string,config:Config):Lead {
  const messages:Message[]=[...lead.messages,{role:'cliente',text:text.trim()}];
  if(result.stop)return {...lead,messages:lead.ai?[...messages,{role:'ia',text:result.text}]:messages,status:'Encerrado',ai:false,optOut:true,needsHuman:false,due:'Não contatar',history:[...lead.history,'Cliente recusou novas mensagens. Acompanhamento encerrado.']};
  if(!lead.ai)return {...lead,messages,status:'Conversando',due:'Ação do vendedor',history:[...lead.history,'Nova mensagem do cliente recebida na simulação.']};
- return {...lead,messages:[...messages,{role:'ia',text:result.text}],status:'Conversando',ai:!result.handoff,needsHuman:!!result.handoff,reason:result.handoff||'',due:result.handoff?'Ação do vendedor':'Aguardando cliente',history:[...lead.history,result.handoff?'IA pausada e vendedor notificado.':'IA respondeu com base nas orientações salvas.']};
+ return {...lead,messages:[...messages,{role:'ia',text:result.text}],status:'Conversando',ai:true,needsHuman:lead.needsHuman||!!result.handoff,recoveryPaused:lead.recoveryPaused||!!result.handoff,reason:lead.needsHuman?lead.reason:result.handoff||'',due:lead.needsHuman||result.handoff?'Ação do vendedor · IA disponível':'Aguardando cliente',history:[...lead.history,result.handoff?'Alerta interno ao vendedor. IA continua disponível.':'IA respondeu com base nas orientações salvas.']};
 }
 export function followup(lead:Lead,config:Config):Lead {
- if(!lead.ai||!lead.consent||lead.optOut||terminal(lead)||lead.status!=='Parado'||!config.followups||lead.attempts>=config.days.length)return lead;
+ if(!lead.ai||!lead.consent||lead.optOut||lead.recoveryPaused||lead.needsHuman||terminal(lead)||lead.status!=='Parado'||!config.followups||lead.attempts>=config.days.length)return lead;
  const first=lead.name.split(' ')[0];
  const text=config.tone==='Direto e objetivo'?`${first}, conseguiu avaliar a proposta de ${lead.service.toLowerCase()}? Posso ajudar com alguma dúvida?`:`Oi, ${first}! Tudo bem? Passando para saber se conseguiu avaliar a proposta de ${lead.service.toLowerCase()}. Se ficou alguma dúvida, estou por aqui para ajudar.`;
  return {...lead,attempts:lead.attempts+1,due:lead.attempts+1>=config.days.length?'Limite atingido':`Dia ${config.days[lead.attempts+1]}`,messages:[...lead.messages,{role:'ia',text}],history:[...lead.history,`Retomada ${lead.attempts+1} simulada, seguindo o tom ${config.tone.toLowerCase()}.`]};
