@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import './readability.css';
+import './retoma.css';
 
 export const metadata: Metadata = {
   title: 'Retoma — Recuperação de orçamentos',
