@@ -2,6 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
+test('overload retries once on the same model and never loops',async()=>{
+ const post=await handler(),original=globalThis.fetch;let calls=0;
+ try{
+  globalThis.fetch=async()=>{calls++;return Response.json({error:{}},{status:503});};
+  const r=await post(request());
+  assert.equal(calls,2);assert.equal(r.status,502);assert.match((await r.json()).error,/503/);
+ }finally{globalThis.fetch=original;}
+});
 import { initialConfig, initialLeads } from '../app/recovery-model.ts';
 
 async function handler(){
@@ -35,12 +43,13 @@ test('fixed stop and handoff rules never call Google',async()=>{
 test('provider request contains approved context, secret only in header, and validates structured response',async()=>{
  const post=await handler(),original=globalThis.fetch;
  globalThis.fetch=async(url,options)=>{
-  assert.match(url,/gemini-3.8-flash:generateContent$/);
+  assert.match(url,/gemini-3.1-flash-lite:generateContent$/);
   assert.equal(options.headers['x-goog-api-key'],'test-only-not-a-real-key');
   assert.ok(!options.body.includes('test-only-not-a-real-key'));
   const body=JSON.parse(options.body);
   assert.match(body.systemInstruction.parts[0].text,/Forma Comunicação Visual/);
-  assert.match(body.contents[0].parts[0].text,/Instalação incluída/);
+  assert.match(body.systemInstruction.parts[0].text,/Instalação incluída/);
+  assert.equal(body.contents[0].parts[0].text,'Vocês fazem instalação?');
   return Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify({text:'Vamos confirmar a instalação com a equipe.',action:'handoff',reason:'Conferir condições.',summary:'Cliente perguntou sobre instalação.'})}]}}]});
  };
  try{
@@ -58,4 +67,3 @@ test('quota and malformed model output return explicit errors without canned fal
   r=await post(request());assert.equal(r.status,502);
  }finally{globalThis.fetch=original;}
 });
-
