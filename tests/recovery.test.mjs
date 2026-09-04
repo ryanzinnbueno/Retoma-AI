@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {initialLeads,initialConfig,activate,changeStatus,followup,receiveMessage,replyTo,summarize} from '../app/recovery-model.ts';
+import {cleanImportedMessages,mergeImportedMessages} from '../app/extension-model.ts';
 const lead=()=>structuredClone(initialLeads[0]);
 const config=()=>structuredClone(initialConfig);
 test('activation requires explicit conversation permission',()=>{
@@ -67,4 +68,14 @@ test('retoma tone and next interval use saved configuration',()=>{
  const c={...config(),tone:'Direto e objetivo',days:[2,5,9]};
  const l=followup(activate(lead(),true),c);
  assert.equal(l.due,'Dia 5');assert.match(l.messages.at(-1).text,/^Carlos, conseguiu/);
+});
+test('extension accepts only bounded customer and seller text',()=>{
+ const items=cleanImportedMessages([{role:'cliente',text:'  Olá   tudo bem? '},{role:'ia',text:'ignorar'},{role:'vendedor',text:'Sim'}]);
+ assert.deepEqual(items,[{role:'cliente',text:'Olá tudo bem?'},{role:'vendedor',text:'Sim'}]);
+ assert.deepEqual(cleanImportedMessages('not-an-array'),[]);
+});
+test('extension import is idempotent and preserves repeated real messages',()=>{
+ const base={...lead(),messages:[]};const items=[{role:'cliente',text:'Oi'},{role:'cliente',text:'Oi'},{role:'vendedor',text:'Olá'}];
+ const once=mergeImportedMessages(base,items,'2026-09-04T10:00:00Z');const twice=mergeImportedMessages(once,items,'2026-09-04T11:00:00Z');
+ assert.equal(once.messages.length,3);assert.equal(twice.messages.length,3);assert.equal(new Set(once.messages.map(m=>m.id)).size,3);
 });

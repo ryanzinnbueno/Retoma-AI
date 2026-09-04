@@ -16,6 +16,7 @@ async function compile(file){
 }
 const sqlite=new DatabaseSync(':memory:');
 sqlite.exec(await readFile('drizzle/0000_lowly_anthem.sql','utf8'));
+sqlite.exec((await readFile('drizzle/0001_daily_marauders.sql','utf8')).replaceAll('--> statement-breakpoint',''));
 const DB={prepare(sql){let values=[];return {
  bind(...v){values=v;return this;},
  async first(){return sqlite.prepare(sql).get(...values)||null;},
@@ -23,6 +24,8 @@ const DB={prepare(sql){let values=[];return {
 };}};
 globalThis.retomaTestEnv={DB,GEMINI_API_KEY:'test-only'};
 const api=await import(await compile('app/api/ai/route.ts'));
+const extensionLink=await import(await compile('app/api/extension/link/route.ts'));
+const extensionChat=await import(await compile('app/api/extension/chat/route.ts'));
 const state=await import(await compile('app/server/store.ts'));
 const model=await import(await compile('app/business-model.ts'));
 const knowledge=await import(await compile('app/server/knowledge.ts'));
@@ -42,6 +45,17 @@ test('custom services and categories persist and reach the AI context without le
  assert.equal((await api.POST(req('custom',payload('Vocês fazem manutenção luminosa?')))).status,200);
  const l=(await state.load('custom')).data.leads[0];assert.equal(l.interests.at(-1).productId,'custom-test');assert.equal(l.interests.at(-1).kind,'mention');assert.match(l.interests.at(-1).evidence,/manutenção/);
  const invalid=await state.load('custom');invalid.data.config.business.products.push({...base,id:'bad',name:'Serviço'});await assert.rejects(()=>state.save('custom',invalid.revision,invalid.data),/Revise/);
+});
+test('extension link is owner-scoped, revocable and stores a supervised suggestion',async()=>{
+ const owner='extension-owner',linkRequest=new Request('https://test.example/api/extension/link',{method:'POST',headers:{'oai-authenticated-user-id':owner}});
+ const linked=await extensionLink.POST(linkRequest),credentials=await linked.json();assert.equal(linked.status,200);assert.match(credentials.token,/^rtm_[a-f0-9]{64}$/);
+ globalThis.fetch=async()=>fake('Sugestão revisável sobre a fachada.','reply');
+ const extensionBody={mode:'analyze',requestId:crypto.randomUUID(),contactKey:'5511999999999',contactName:'Cliente teste',subject:'Fachada em ACM',consent:true,messages:[{role:'cliente',text:'Vocês trabalham com fachada em ACM?'}]};
+ const makeRequest=()=>new Request('https://test.example/api/extension/chat',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+credentials.token},body:JSON.stringify(extensionBody)});const request=makeRequest();
+ const response=await extensionChat.POST(request),data=await response.json();assert.equal(response.status,200);assert.match(data.suggestion,/fachada/i);
+ const saved=await state.load(owner),lead=saved.data.leads.find(l=>l.externalId==='whatsapp-web:5511999999999');assert.equal(lead.service,'Fachada em ACM');assert.equal(lead.messages.at(-1).role,'cliente');assert.ok(!lead.messages.some(m=>m.role==='ia'&&m.text===data.suggestion));
+ const revoked=await extensionLink.DELETE(new Request('https://test.example/api/extension/link',{method:'DELETE',headers:{'oai-authenticated-user-id':owner}}));assert.equal(revoked.status,200);
+ const denied=await extensionChat.POST(makeRequest());assert.equal(denied.status,401);
 });
 test('server timestamps closings; confirmed amounts retain closing date; client cannot forge dates',async()=>{
  const s=await setup('dates');s.data.leads[0].status='Vendido';s.data.leads[0].valueConfirmed=false;s.data.leads[0].events=[{id:'fake',at:'2000-01-01',status:'Vendido',value:99,confirmed:true}];
