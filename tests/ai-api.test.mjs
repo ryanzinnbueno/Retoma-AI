@@ -46,16 +46,21 @@ test('custom services and categories persist and reach the AI context without le
  const l=(await state.load('custom')).data.leads[0];assert.equal(l.interests.at(-1).productId,'custom-test');assert.equal(l.interests.at(-1).kind,'mention');assert.match(l.interests.at(-1).evidence,/manutenção/);
  const invalid=await state.load('custom');invalid.data.config.business.products.push({...base,id:'bad',name:'Serviço'});await assert.rejects(()=>state.save('custom',invalid.revision,invalid.data),/Revise/);
 });
-test('extension link is owner-scoped, revocable and stores a supervised suggestion',async()=>{
+test('extension link activates, auto replies once, acknowledges delivery and pauses for seller',async()=>{
  const owner='extension-owner',linkRequest=new Request('https://test.example/api/extension/link',{method:'POST',headers:{'oai-authenticated-user-id':owner}});
  const linked=await extensionLink.POST(linkRequest),credentials=await linked.json();assert.equal(linked.status,200);assert.match(credentials.token,/^rtm_[a-f0-9]{64}$/);
- globalThis.fetch=async()=>fake('Sugestão revisável sobre a fachada.','reply');
- const extensionBody={mode:'analyze',requestId:crypto.randomUUID(),contactKey:'5511999999999',contactName:'Cliente teste',subject:'Fachada em ACM',consent:true,messages:[{role:'cliente',text:'Vocês trabalham com fachada em ACM?'}]};
- const makeRequest=()=>new Request('https://test.example/api/extension/chat',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+credentials.token},body:JSON.stringify(extensionBody)});const request=makeRequest();
- const response=await extensionChat.POST(request),data=await response.json();assert.equal(response.status,200);assert.match(data.suggestion,/fachada/i);
- const saved=await state.load(owner),lead=saved.data.leads.find(l=>l.externalId==='whatsapp-web:5511999999999');assert.equal(lead.service,'Fachada em ACM');assert.equal(lead.messages.at(-1).role,'cliente');assert.ok(!lead.messages.some(m=>m.role==='ia'&&m.text===data.suggestion));
+ globalThis.fetch=async()=>fake('Claro! Trabalhamos com fachada em ACM. Posso entender melhor o seu projeto?','reply');
+ const base={contactKey:'5511999999999',contactName:'Cliente teste',subject:'Fachada em ACM',consent:true,messages:[{role:'cliente',text:'Vocês trabalham com fachada em ACM?'}]};
+ const makeRequest=body=>new Request('https://test.example/api/extension/chat',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+credentials.token},body:JSON.stringify(body)});
+ let response=await extensionChat.POST(makeRequest({...base,mode:'activate'})),data=await response.json();assert.equal(response.status,200);assert.equal(data.active,true);
+ response=await extensionChat.POST(makeRequest({...base,mode:'auto',requestId:crypto.randomUUID()}));data=await response.json();assert.equal(response.status,200);assert.match(data.reply.text,/fachada/i);assert.ok(data.reply.parts.length>=1);
+ let saved=await state.load(owner),lead=saved.data.leads.find(l=>l.externalId==='whatsapp-web:5511999999999');assert.equal(lead.service,'Fachada em ACM');assert.equal(lead.messages.at(-1).role,'cliente');assert.ok(!lead.messages.some(m=>m.role==='ia'));
+ response=await extensionChat.POST(makeRequest({...base,mode:'sent',requestMessageId:data.reply.requestMessageId,messages:[...base.messages,{role:'vendedor',text:data.reply.text}]}));assert.equal(response.status,200);
+ saved=await state.load(owner);lead=saved.data.leads.find(l=>l.externalId==='whatsapp-web:5511999999999');assert.equal(lead.messages.at(-1).role,'ia');assert.equal(lead.messages.at(-1).delivery,'sent');assert.equal(lead.pendingExtensionReply,undefined);
+ response=await extensionChat.POST(makeRequest({...base,mode:'auto',requestId:crypto.randomUUID()}));data=await response.json();assert.equal(data.noReply,true);
+ response=await extensionChat.POST(makeRequest({...base,mode:'seller',messages:[...base.messages,{role:'vendedor',text:'Eu continuo daqui.'}]}));assert.equal(response.status,200);assert.equal((await response.json()).active,false);
  const revoked=await extensionLink.DELETE(new Request('https://test.example/api/extension/link',{method:'DELETE',headers:{'oai-authenticated-user-id':owner}}));assert.equal(revoked.status,200);
- const denied=await extensionChat.POST(makeRequest());assert.equal(denied.status,401);
+ const denied=await extensionChat.POST(makeRequest({...base,mode:'status'}));assert.equal(denied.status,401);
 });
 test('server timestamps closings; confirmed amounts retain closing date; client cannot forge dates',async()=>{
  const s=await setup('dates');s.data.leads[0].status='Vendido';s.data.leads[0].valueConfirmed=false;s.data.leads[0].events=[{id:'fake',at:'2000-01-01',status:'Vendido',value:99,confirmed:true}];

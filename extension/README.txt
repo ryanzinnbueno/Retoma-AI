@@ -1,12 +1,14 @@
-RETOMA — EXTENSÃO DE TESTE
+RETOMA PARA WHATSAPP WEB — BETA 0.2
 
-1. Extraia todos os arquivos desta pasta.
-2. Abra chrome://extensions no Chrome.
-3. Ative o Modo do desenvolvedor.
-4. Clique em Carregar sem compactação e escolha esta pasta.
-5. Abra o site Retoma neste mesmo Chrome e entre na sua conta.
-6. No Retoma, vá em Configurações > WhatsApp e crie um código de vínculo.
-7. Clique no ícone Retoma no Chrome, cole o código e salve.
-8. Abra web.whatsapp.com, selecione uma conversa autorizada e clique no botão Retoma.
+1. Abra chrome://extensions no Chrome.
+2. Ative o modo do desenvolvedor.
+3. Clique em Carregar sem compactação e selecione esta pasta.
+4. No site Retoma, abra Configurações > WhatsApp e crie um código de vínculo.
+5. Abra a extensão, cole o código e clique em Vincular extensão.
+6. No WhatsApp Web, abra uma conversa autorizada e clique em Retoma > Acompanhar com IA.
 
-Esta versão lê somente a conversa aberta quando o vendedor solicita, prepara uma sugestão e não envia mensagens automaticamente.
+Enquanto Chrome e WhatsApp Web estiverem abertos, a extensão verifica novas mensagens, solicita uma resposta à IA, envia blocos curtos e sincroniza o contexto com a Central de atendimento.
+
+Se o vendedor começar a digitar ou clicar em Assumir, a IA é pausada naquela conversa. Solicitações humanas geram alerta e resumo, mas a IA continua disponível até o vendedor assumir.
+
+Esta é uma integração beta baseada na interface do WhatsApp Web. Comece com um número e contatos de teste. Alterações do WhatsApp Web podem exigir atualização da extensão.

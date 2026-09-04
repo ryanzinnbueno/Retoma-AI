@@ -4,8 +4,9 @@ import './retoma.css';
 import './evolution.css';
 
 export const metadata: Metadata = {
-  title: 'Retoma — Recuperação de orçamentos',
-  description: 'Recuperação assistida de vendas. IA real, dados de teste e WhatsApp simulado.',
+  title: 'Retoma — Recuperação de oportunidades comerciais',
+  description: 'Retome conversas, acompanhe orçamentos e reconecte oportunidades com IA e atenção humana.',
+  icons: {icon:'/retoma-icon.png'},
 };
 
 export default function RootLayout({

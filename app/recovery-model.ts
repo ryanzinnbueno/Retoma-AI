@@ -1,10 +1,11 @@
 export const statuses = ['Parado', 'Conversando', 'Vendido', 'Encerrado'] as const;
 export type Status = typeof statuses[number];
-export type Message = { role: 'cliente' | 'vendedor' | 'ia'; text: string; kind?: 'quote'; provider?: string; id?:string; createdAt?:string; delivery?:'demo'|'suggested'; action?:string; references?:string[] };
+export type Message = { role: 'cliente' | 'vendedor' | 'ia'; text: string; kind?: 'quote'; provider?: string; id?:string; createdAt?:string; delivery?:'demo'|'suggested'|'received'|'sent'|'pending'|'failed'; action?:string; references?:string[] };
+export type PendingExtensionReply={requestMessageId:string;text:string;parts:string[];summary:string;needsHuman:boolean;reason:string;stop:boolean;createdAt:string};
 export type Lead = {
  events?:{id:string;at:string;status:Status;value:number|null;confirmed:boolean}[];
  interests?:{productId:string;evidence:string;messageId:string;at:string;kind:'mention'|'declared'}[];
- id: number; name: string; company: string; service: string; value: number|null; date: string; reference?:string; valueConfirmed?:boolean; productId?:string|null; recoveryPaused?:boolean; externalId?:string;
+ id: number; name: string; company: string; service: string; value: number|null; date: string; reference?:string; valueConfirmed?:boolean; productId?:string|null; recoveryPaused?:boolean; externalId?:string; lastAutoReplyTo?:string; pendingExtensionReply?:PendingExtensionReply;
  status: Status; ai: boolean; consent: boolean; optOut: boolean; due: string; attempts: number;
  aiSummary?: string; reason: string; needsHuman: boolean; notes: string; messages: Message[]; history: string[];
 };

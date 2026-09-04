@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {initialLeads,initialConfig,activate,changeStatus,followup,receiveMessage,replyTo,summarize} from '../app/recovery-model.ts';
-import {cleanImportedMessages,mergeImportedMessages} from '../app/extension-model.ts';
+import {cleanImportedMessages,lastImportedMessage,mergeImportedMessages} from '../app/extension-model.ts';
 const lead=()=>structuredClone(initialLeads[0]);
 const config=()=>structuredClone(initialConfig);
 test('activation requires explicit conversation permission',()=>{
@@ -78,4 +78,6 @@ test('extension import is idempotent and preserves repeated real messages',()=>{
  const base={...lead(),messages:[]};const items=[{role:'cliente',text:'Oi'},{role:'cliente',text:'Oi'},{role:'vendedor',text:'Olá'}];
  const once=mergeImportedMessages(base,items,'2026-09-04T10:00:00Z');const twice=mergeImportedMessages(once,items,'2026-09-04T11:00:00Z');
  assert.equal(once.messages.length,3);assert.equal(twice.messages.length,3);assert.equal(new Set(once.messages.map(m=>m.id)).size,3);
+ assert.equal(lastImportedMessage(items).id,once.messages.at(-1).id);
+ assert.equal(once.messages[0].delivery,'received');assert.equal(once.messages.at(-1).delivery,'sent');
 });

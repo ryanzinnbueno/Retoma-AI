@@ -1,16 +1,18 @@
 {
   "manifest_version": 3,
   "name": "Retoma — Assistente para WhatsApp Web",
-  "version": "0.1.1",
-  "description": "Prepara resumos e sugestões de resposta para conversas autorizadas no WhatsApp Web.",
+  "version": "0.2.0",
+  "description": "Acompanha conversas autorizadas, responde com IA e sincroniza o contexto com o Retoma.",
   "permissions": ["storage", "clipboardWrite"],
   "host_permissions": ["https://retoma-orcamentos-ruben.rogerio-ryan4057.chatgpt.site/*"],
   "background": {"service_worker": "background.js"},
-  "action": {"default_title": "Configurar Retoma", "default_popup": "popup.html"},
+  "icons": {"16": "retoma-icon.png", "48": "retoma-icon.png", "128": "retoma-icon.png"},
+  "action": {"default_title": "Configurar Retoma", "default_popup": "popup.html", "default_icon": "retoma-icon.png"},
   "content_scripts": [{
     "matches": ["https://web.whatsapp.com/*"],
     "js": ["content.js"],
     "css": ["content.css"],
     "run_at": "document_idle"
-  }]
+  }],
+  "web_accessible_resources": [{"resources": ["retoma-icon.png", "retoma-logo.png"], "matches": ["https://web.whatsapp.com/*"]}]
 }

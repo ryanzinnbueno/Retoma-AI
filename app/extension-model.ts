@@ -21,6 +21,12 @@ export function importedMessageId(item:ImportedMessage,occurrence:number){
 export function mergeImportedMessages(lead:Lead,items:ImportedMessage[],at:string):Lead{
  const occurrences=new Map<string,number>(),existing=new Set(lead.messages.map(m=>m.id).filter(Boolean));
  const additions:Message[]=[];
- for(const item of items){const key=item.role+'\0'+item.text,count=(occurrences.get(key)||0)+1;occurrences.set(key,count);const id=importedMessageId(item,count);if(!existing.has(id)){existing.add(id);additions.push({...item,id,createdAt:at,delivery:'suggested'});}}
+ for(const item of items){const key=item.role+'\0'+item.text,count=(occurrences.get(key)||0)+1;occurrences.set(key,count);const id=importedMessageId(item,count);if(!existing.has(id)){existing.add(id);additions.push({...item,id,createdAt:at,delivery:item.role==='cliente'?'received':'sent'});}}
  return {...lead,messages:[...lead.messages,...additions]};
+}
+
+export function lastImportedMessage(items:ImportedMessage[]){
+ const occurrences=new Map<string,number>();let result:{item:ImportedMessage;id:string}|null=null;
+ for(const item of items){const key=item.role+'\0'+item.text,count=(occurrences.get(key)||0)+1;occurrences.set(key,count);result={item,id:importedMessageId(item,count)};}
+ return result;
 }
