@@ -1,0 +1,8 @@
+/* Comfortable type sizes across the compact working surface. */
+.bubble p,.ai-card p{font-size:1rem}
+.search input,.contact-copy>span,.contact-copy small,.status,.next-step b,.next-step p,.primary,.secondary,.success-button,.light-button,.composer input,.end-button,.demo-controls{font-size:.875rem}
+.eyebrow,.section-label,.ai-label,.ai-label span,.beta,.chat-badge,.date-chip,.bubble small,.conversation-hint,.send-note,.assistant-heading p,.ai-card small,.site-footer,.demo-strip{font-size:.75rem}
+.contact-copy>span,.next-step p,.ai-card p,.page-heading p,.muted{color:#64756a}
+.section-label,.contact-copy small,.send-note,.conversation-hint,.date-chip,.bubble small{color:#64776b}
+.ai-label{flex-wrap:wrap}.ai-label span{margin-left:0}.assistant-heading{padding-left:16px;padding-right:16px}.assistant-body{padding:19px}.section-label{letter-spacing:.3px}.assistant-heading p{color:#b9cec1}.ai-card small{color:#63785d;align-items:center}.end-button{padding:5px}.messages{max-height:760px;overflow:auto}.contact-list{max-height:670px;overflow:auto}.new-dialog{max-height:90vh;overflow:auto}.toast{bottom:12px}
+@media(max-width:640px){.nav-tabs button{font-size:.875rem!important}.demo-strip{line-height:1.6}.demo-strip>span{flex-wrap:wrap}.intervals{gap:8px}.today-box{flex-wrap:wrap}.chat-header p{font-size:.875rem}.assistant-body{padding:22px}.messages{max-height:620px}.contact-list{max-height:none}.search input,.composer input{font-size:1rem}}
