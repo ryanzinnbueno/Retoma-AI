@@ -1,10 +1,10 @@
 export const statuses = ['Parado', 'Conversando', 'Vendido', 'Encerrado'] as const;
 export type Status = typeof statuses[number];
-export type Message = { role: 'cliente' | 'vendedor' | 'ia'; text: string; kind?: 'quote' };
+export type Message = { role: 'cliente' | 'vendedor' | 'ia'; text: string; kind?: 'quote'; provider?: string };
 export type Lead = {
  id: number; name: string; company: string; service: string; value: number; date: string;
  status: Status; ai: boolean; consent: boolean; optOut: boolean; due: string; attempts: number;
- reason: string; needsHuman: boolean; notes: string; messages: Message[]; history: string[];
+ aiSummary?: string; reason: string; needsHuman: boolean; notes: string; messages: Message[]; history: string[];
 };
 export type Knowledge = { id: number; question: string; answer: string };
 export type Config = {
