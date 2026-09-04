@@ -2,6 +2,36 @@
 @media(max-width:1000px){.catalogue-grid,.tutorial-flow{grid-template-columns:repeat(2,minmax(0,1fr))}.result-counters{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:640px){.catalogue-grid,.tutorial-flow,.result-counters{grid-template-columns:1fr}.catalogue-filters{flex-direction:column;align-items:stretch}.section-tabs{flex-wrap:wrap;height:auto}.settings-layout,.two-fields{grid-template-columns:1fr!important}.interval-grid{grid-template-columns:repeat(2,1fr)}.page-title h1{font-size:1.8rem}.product-sheet{padding:1rem!important}}
 /* Shared visual language across every Retoma surface. */
+.retoma-shell .catalogue-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:18px}
+.retoma-shell .catalogue-actions>span{display:flex;align-items:center;gap:8px;flex:1;font-size:.9375rem;color:#4e6b59;min-width:200px}
+.retoma-shell .whatsapp-connect{max-width:780px;margin:0 auto 28px}
+.retoma-shell .whatsapp-connect>.round-icon{margin-right:12px;width:52px;height:52px;background:#def0e5;color:#28744d}
+.retoma-shell .connection-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:22px 0}
+.retoma-shell .connection-steps>span{display:flex;gap:10px;align-items:center;padding:16px;border-radius:12px;border:1px solid #dbe7df;background:#eef6f1;font-size:.9375rem;color:#3e674b}
+.retoma-shell .period-toolbar{display:flex;align-items:center;gap:18px;padding:18px 22px;flex-wrap:wrap}
+.retoma-shell .period-toolbar .field{margin:0;flex:1;min-width:155px}
+.retoma-shell .period-caption{margin:14px 0 22px;font-size:.875rem;color:#5f7668}
+.retoma-shell .result-counters article>svg{margin-bottom:8px}
+.retoma-shell .result-counters article>span{display:block}
+.retoma-shell .interests-card ul{padding:0;margin:12px 0;list-style:none}
+.retoma-shell .interests-card li{padding:12px 0;border-top:1px solid #dce6df}
+.retoma-shell .interests-card li>b{display:block;margin-bottom:8px}
+.retoma-shell .interests-card blockquote{font-size:.875rem}
+.workspace-page .message-ia:has(.short-message-group){padding:0;background:none;border:0;box-shadow:none;max-width:90%}
+.workspace-page .message-ia:has(.short-message-group)>.ai-message-label{border:0;margin:0 0 8px;padding:0 4px}
+.workspace-page .short-message-group{display:flex;flex-direction:column;gap:9px;align-items:flex-end}
+.workspace-page .short-message-group .short-message{padding:13px 16px;background:#e4f2e9;border:1px solid #c8e1d1;border-radius:14px 14px 4px 14px;box-shadow:0 3px 8px #14382906}
+.workspace-page .typing-preview{padding:9px 14px;background:#fff;border-radius:12px;font-size:.8125rem;color:#51715c}
+.workspace-page .typing-preview>span{letter-spacing:3px}
+.workspace-page .short-message-group>small{font-size:.8125rem;color:#57705d}
+.workspace-page .short-message-group button{text-decoration:underline;min-height:32px}
+.retoma-shell .content-page .section-tabs button svg{display:block!important}
+.retoma-shell .content-page .settings-section,.retoma-shell .content-page .product-card{overflow-wrap:anywhere}
+.retoma-shell .content-page .product-card{min-height:0}
+.retoma-shell .content-page .product-card p{max-width:65ch}
+.product-sheet .field{display:flex;flex-direction:column;gap:8px}
+.product-sheet .field>input{min-height:44px;padding:11px 13px;border:1px solid #cfddd3;border-radius:10px;font-size:1rem;background:#fff}
+@media(max-width:680px){.retoma-shell .connection-steps{grid-template-columns:1fr}.retoma-shell .catalogue-actions>.btn{flex:1}.retoma-shell .period-toolbar{padding:16px;gap:12px}.retoma-shell .period-toolbar>.field{min-width:100%;width:100%}.retoma-shell .content-page .section-tabs button{white-space:normal;gap:6px!important}}
 .retoma-shell .content-page .page-title{padding:24px 0 20px}
 .retoma-shell .content-page h1{font-size:1.7rem;letter-spacing:-.6px}
 .retoma-shell .content-page .page-title p{color:#5b7264;font-size:.9375rem;line-height:1.6}

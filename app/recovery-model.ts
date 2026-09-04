@@ -1,7 +1,9 @@
 export const statuses = ['Parado', 'Conversando', 'Vendido', 'Encerrado'] as const;
 export type Status = typeof statuses[number];
-export type Message = { role: 'cliente' | 'vendedor' | 'ia'; text: string; kind?: 'quote'; provider?: string; id?:string; delivery?:'demo'|'suggested'; action?:string; references?:string[] };
+export type Message = { role: 'cliente' | 'vendedor' | 'ia'; text: string; kind?: 'quote'; provider?: string; id?:string; createdAt?:string; delivery?:'demo'|'suggested'; action?:string; references?:string[] };
 export type Lead = {
+ events?:{id:string;at:string;status:Status;value:number|null;confirmed:boolean}[];
+ interests?:{productId:string;evidence:string;messageId:string;at:string;kind:'mention'|'declared'}[];
  id: number; name: string; company: string; service: string; value: number|null; date: string; reference?:string; valueConfirmed?:boolean; productId?:string|null; recoveryPaused?:boolean;
  status: Status; ai: boolean; consent: boolean; optOut: boolean; due: string; attempts: number;
  aiSummary?: string; reason: string; needsHuman: boolean; notes: string; messages: Message[]; history: string[];

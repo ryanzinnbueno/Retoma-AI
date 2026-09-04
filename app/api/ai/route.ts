@@ -2,6 +2,7 @@ import { identity,origin,load,commit,db,json,failure,readBody,AppError } from '.
 import { generate,mandatory } from '../../server/gemini';
 import { validateDecision } from '../../server/decisions';
 import { business } from '../../business-model';
+import { recordInterests } from '../../conversation-tools';
 import { terminal,type Lead } from '../../recovery-model';
 export async function POST(req:Request){
  let owner='',eventId='',claimed=false;
@@ -28,7 +29,8 @@ export async function POST(req:Request){
   const b=business(snapshot.data.config);
   if(mode==='followup'&&(!lead.ai||!lead.consent||lead.recoveryPaused||b.paused||lead.status!=='Parado'||!snapshot.data.config.followups||lead.attempts>=snapshot.data.config.days.length))throw new AppError(409,'Retomada não permitida neste estado.');
   if(mode==='reply'&&!lead.messages.some(m=>m.id===eventId)){
-   lead={...lead,status:'Conversando',due:lead.ai?'Aguardando resposta da IA':'Ação do vendedor',messages:[...lead.messages,{id:eventId,role:'cliente',text:question,delivery:'demo'}]};
+   const at=new Date().toISOString();
+   lead={...lead,interests:recordInterests(lead,snapshot.data.config,question,eventId,at),status:'Conversando',due:lead.ai?'Aguardando resposta da IA':'Ação do vendedor',messages:[...lead.messages,{id:eventId,role:'cliente',text:question,createdAt:at,delivery:'demo'}]};
    snapshot.data.leads=snapshot.data.leads.map(l=>l.id===leadId?lead!:l);
    snapshot=await commit(owner,snapshot.revision,snapshot.data);
   }
@@ -49,7 +51,8 @@ export async function POST(req:Request){
    recoveryPaused:result.action==='stop'||pending?true:current.recoveryPaused,needsHuman:pending,
    reason,aiSummary:pending?`${result.summary}\nPendência para o vendedor: ${reason}`.slice(0,4000):result.summary,attempts:mode==='followup'?current.attempts+1:current.attempts,
    due:result.action==='stop'?'Não contatar':pending?'Ação do vendedor · IA disponível':mode==='followup'?'Aguardando cliente':'Em conversa',
-   messages:silent?current.messages:[...current.messages,{id:eventId+'-reply',role:'ia',text:result.text,provider:result.provider,delivery:'demo',action:result.action,references:result.references}],
+   events:result.action==='stop'?[...(current.events||[]),{id:eventId,at:new Date().toISOString(),status:'Encerrado',value:current.value,confirmed:false}]:current.events,
+   messages:silent?current.messages:[...current.messages,{id:eventId+'-reply',role:'ia',text:result.text,createdAt:new Date().toISOString(),provider:result.provider,delivery:'demo',action:result.action,references:result.references}],
    history:repeatedHumanRequest?current.history:[...current.history,result.action==='handoff'?(current.needsHuman?'Pendência do vendedor atualizada. IA continua disponível.':'Alerta interno ao vendedor registrado. IA continua disponível para outras dúvidas. Nenhuma notificação externa enviada.'):result.action==='stop'?'Recusa registrada. Novos contatos bloqueados.':mode==='followup'?'Retomada de teste gerada; não enviada ao WhatsApp.':'Resposta de teste gerada; não enviada ao WhatsApp.']};
   latest.data.leads=latest.data.leads.map(l=>l.id===leadId?next:l);
   // Atomic compare-and-swap: a seller taking over always invalidates this generated result.

@@ -21,7 +21,15 @@ export async function save(owner:string,revision:number,data:Workspace){
  for(const previous of current.data.leads){const next=data.leads.find(l=>l.id===previous.id);if(!next)throw new AppError(400,'Não é permitido apagar acompanhamentos nesta etapa.');if(previous.optOut){next.optOut=true;next.ai=false;next.recoveryPaused=true;}if(next.status==='Vendido'||next.status==='Encerrado')next.ai=false;
  if(previous.messages.some(m=>m.id&&!next.messages.some(n=>n.id===m.id&&JSON.stringify(n)===JSON.stringify(m))))throw new AppError(409,'Não é permitido sobrescrever mensagens registradas.');
  for(const message of next.messages){if(!previous.messages.some(m=>m.id&&m.id===message.id)){if(message.role!=='vendedor')throw new AppError(400,'Mensagens automáticas devem passar pelo processamento do servidor.');message.id=crypto.randomUUID();message.delivery='demo';}}
+ next.interests=previous.interests;
+ next.events=structuredClone(previous.events||[]);
+ if(next.status!==previous.status){next.events.push({id:crypto.randomUUID(),at:new Date().toISOString(),status:next.status,value:next.value,confirmed:!!next.valueConfirmed});}
+ else if(next.status==='Vendido'&&(next.value!==previous.value||next.valueConfirmed!==previous.valueConfirmed)){
+ const last=[...next.events].reverse().find(e=>e.status==='Vendido');if(last){last.value=next.value;last.confirmed=!!next.valueConfirmed;}
+ }
+ for(const message of next.messages){if(!previous.messages.some(m=>m.id===message.id))message.createdAt=new Date().toISOString();}
  next.attempts=Math.max(previous.attempts,next.attempts);if(!next.consent)next.ai=false;
  }
+ for(const added of data.leads.filter(l=>!current.data.leads.some(p=>p.id===l.id))){added.interests=[];added.events=[{id:crypto.randomUUID(),at:new Date().toISOString(),status:added.status,value:added.value,confirmed:!!added.valueConfirmed}];}
  return commit(owner,revision,data);
 }
