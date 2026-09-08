@@ -1,4 +1,4 @@
-RETOMA PARA WHATSAPP WEB — BETA 0.2
+RETOMA PARA WHATSAPP WEB — BETA 0.2.1
 
 1. Abra chrome://extensions no Chrome.
 2. Ative o modo do desenvolvedor.
