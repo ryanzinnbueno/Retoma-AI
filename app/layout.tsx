@@ -2,8 +2,6 @@ import type { Metadata } from 'next';
 import './globals.css';
 import './retoma.css';
 import './evolution.css';
-import './official.css';
-import './official-extra.css';
 
 export const metadata: Metadata = {
   title: 'Retoma — Recuperação de oportunidades comerciais',
