@@ -3,7 +3,7 @@ import { business } from '../../../business-model';
 import { conversationalMessages, recordInterests } from '../../../conversation-tools';
 import { terminal, type Lead, type Message } from '../../../recovery-model';
 import { validateDecision } from '../../../server/decisions';
-import { generate, mandatory, type Decision } from '../../../server/gemini';
+import { generate, mandatory, type Decision, type MediaInput } from '../../../server/gemini';
 import { AppError, commit, db, load } from '../../../server/store';
 
 type MetaMessage = {
@@ -14,9 +14,10 @@ type MetaMessage = {
   text?: { body?: string };
   button?: { text?: string };
   interactive?: { button_reply?: { title?: string }; list_reply?: { title?: string } };
-  image?: { caption?: string };
+  image?: { id?: string; caption?: string; mime_type?: string };
   video?: { caption?: string };
   document?: { caption?: string; filename?: string };
+  audio?: { id?: string; mime_type?: string };
 };
 type QueuedMessage = { message: MetaMessage; contactName: string; phoneNumberId: string; wabaId: string };
 type Settings = Record<
@@ -60,10 +61,37 @@ function inboundText(message: MetaMessage) {
     message.interactive?.button_reply?.title || message.interactive?.list_reply?.title ||
     message.image?.caption || message.video?.caption || message.document?.caption;
   if (text?.trim()) return text.trim().slice(0, 6000);
-  if (message.type === 'audio') return '[Cliente enviou um áudio que precisa ser analisado pelo vendedor.]';
-  if (message.type === 'image') return '[Cliente enviou uma imagem sem legenda.]';
+  if (message.type === 'audio') return '[Cliente enviou um áudio para análise.]';
+  if (message.type === 'image') return '[Cliente enviou uma imagem sem legenda para análise.]';
   if (message.type === 'document') return `[Cliente enviou um documento${message.document?.filename ? `: ${message.document.filename}` : ''}.]`.slice(0, 6000);
   return `[Cliente enviou uma mensagem do tipo ${message.type || 'não identificado'}.]`;
+}
+function encodeBase64(buffer:ArrayBuffer){
+  const bytes=new Uint8Array(buffer);let binary='';
+  for(let offset=0;offset<bytes.length;offset+=32768)binary+=String.fromCharCode(...bytes.subarray(offset,offset+32768));
+  return btoa(binary);
+}
+async function downloadMedia(message:MetaMessage):Promise<MediaInput|null>{
+  const type=message.type==='image'?'image':message.type==='audio'?'audio':null;
+  if(!type)return null;
+  const media=type==='image'?message.image:message.audio,id=media?.id?.trim();
+  if(!id)return null;
+  const version=settings().META_GRAPH_VERSION?.trim()||'v25.0',token=required('WHATSAPP_ACCESS_TOKEN'),phone=required('WHATSAPP_PHONE_NUMBER_ID');
+  const metadataResponse=await fetch(`https://graph.facebook.com/${version}/${encodeURIComponent(id)}?phone_number_id=${encodeURIComponent(phone)}`,{
+    headers:{Authorization:`Bearer ${token}`},signal:AbortSignal.timeout(10000),
+  });
+  if(!metadataResponse.ok){await metadataResponse.body?.cancel();throw new AppError(502,`Não foi possível localizar a mídia no WhatsApp (${metadataResponse.status}).`);}
+  const metadata:any=await metadataResponse.json(),url=String(metadata.url||'');
+  const mimeType=String(metadata.mime_type||media?.mime_type||'').split(';')[0].trim().toLowerCase();
+  const allowed=type==='image'?['image/jpeg','image/png']:['audio/aac','audio/mp4','audio/mpeg','audio/amr','audio/ogg'];
+  const limit=type==='image'?5_000_000:12_000_000;
+  if(!url.startsWith('https://')||!allowed.includes(mimeType)||Number(metadata.file_size||0)>limit)return null;
+  const mediaResponse=await fetch(url,{headers:{Authorization:`Bearer ${token}`},signal:AbortSignal.timeout(15000)});
+  if(!mediaResponse.ok){await mediaResponse.body?.cancel();throw new AppError(502,`Não foi possível baixar a mídia do WhatsApp (${mediaResponse.status}).`);}
+  const declared=Number(mediaResponse.headers.get('content-length')||0);
+  if(declared>limit){await mediaResponse.body?.cancel();return null;}
+  const buffer=await mediaResponse.arrayBuffer();if(buffer.byteLength>limit)return null;
+  return {type,data:encodeBase64(buffer),mimeType};
 }
 function extract(payload: any): QueuedMessage[] {
   const result: QueuedMessage[] = [];
@@ -152,14 +180,15 @@ async function processQueued(owner: string, eventId: string) {
       await db().prepare("UPDATE events SET status='done',result=? WHERE owner=? AND id=?").bind(JSON.stringify({ action: 'manual' }), owner, eventId).run(); return;
     }
     await showTyping(eventId).catch((error) => console.warn('WhatsApp typing indicator failed', error instanceof Error ? error.message : 'unknown'));
-    const mediaOnly = incoming.startsWith('[Cliente enviou');
+    const media=await downloadMedia(item.message);
+    const mediaOnly = incoming.startsWith('[Cliente enviou')&&!media;
     const forced: Decision | null = mediaOnly ? {
       text: 'Recebi seu arquivo. O vendedor foi avisado para analisar esse conteúdo. Enquanto isso, você pode me explicar por texto qual é a sua dúvida.',
       action: 'handoff', reason: 'Conteúdo precisa de análise do vendedor.', summary: incoming,
       references: ['central:unsupported-media-v1'], provider: 'Regra obrigatória',
     } : mandatory(incoming);
     if (forced) await delay(650);
-    const decision = forced || validateDecision(snapshot.data.config, lead, incoming, await generate(snapshot.data.config, lead, incoming, 'reply'));
+    const decision = forced || validateDecision(snapshot.data.config, lead, incoming, await generate(snapshot.data.config, lead, incoming, 'reply',media||undefined));
     const latest = await load(owner), current = latest.data.leads.find((candidate) => candidate.id === lead!.id);
     if (!current || !current.ai || current.optOut || terminal(current) || business(latest.data.config).paused) {
       await db().prepare("UPDATE events SET status='cancelled',result=? WHERE owner=? AND id=?").bind(JSON.stringify({ reason: 'Atendimento assumido.' }), owner, eventId).run(); return;
