@@ -32,7 +32,7 @@ const knowledge=await import(await compile('app/server/knowledge.ts'));
 const originalFetch=globalThis.fetch;
 const req=(owner,body)=>new Request('https://test.example/api/ai',{method:'POST',headers:{'content-type':'application/json',...(owner?{'oai-authenticated-user-id':owner}:{})},body:JSON.stringify(body)});
 const payload=(question='Vocês fazem instalação?')=>({leadId:1,question,messageId:crypto.randomUUID()});
-const fake=(text='Vou confirmar as condições.',action='clarify')=>Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify({text,action,reason:'Precisa confirmar.',summary:'Cliente perguntou sobre instalação.'})}]}}]});
+const fake=(text='Vou confirmar as condições.',action='clarify')=>Response.json({status:'completed',steps:[{type:'model_output',content:[{type:'text',text:JSON.stringify({text,action,reason:'Precisa confirmar.',summary:'Cliente perguntou sobre instalação.'})}]}]});
 async function setup(owner){const s=await state.load(owner);s.data.leads[0].ai=true;s.data.leads[0].consent=true;return state.commit(owner,s.revision,s.data);}
 test.after(()=>{globalThis.fetch=originalFetch;sqlite.close();});
 test('custom services and categories persist and reach the AI context without leaking tenants',async()=>{
@@ -41,7 +41,7 @@ test('custom services and categories persist and reach the AI context without le
  await state.save('custom',s.revision,s.data);const saved=await state.load('custom');
  assert.equal(model.allCatalogue(saved.data.config).at(-1)[1],'Manutenção luminosa');
  assert.ok(!model.allCatalogue((await state.load('other-custom')).data.config).some(p=>p[0]==='custom-test'));
- globalThis.fetch=async(url,options)=>{assert.match(JSON.parse(options.body).systemInstruction.parts[0].text,/Revisão de identificação luminosa/);return fake('Oferecemos manutenção luminosa.','reply');};
+ globalThis.fetch=async(url,options)=>{const body=JSON.parse(options.body);assert.match(url,/\/v1beta\/interactions$/);assert.match(body.system_instruction,/Revisão de identificação luminosa/);assert.equal(body.store,false);return fake('Oferecemos manutenção luminosa.','reply');};
  assert.equal((await api.POST(req('custom',payload('Vocês fazem manutenção luminosa?')))).status,200);
  const l=(await state.load('custom')).data.leads[0];assert.equal(l.interests.at(-1).productId,'custom-test');assert.equal(l.interests.at(-1).kind,'mention');assert.match(l.interests.at(-1).evidence,/manutenção/);
  const invalid=await state.load('custom');invalid.data.config.business.products.push({...base,id:'bad',name:'Serviço'});await assert.rejects(()=>state.save('custom',invalid.revision,invalid.data),/Revise/);
@@ -127,7 +127,7 @@ test('pending seller alert survives other questions; takeover prevents even forc
  const count=s.data.leads[0].messages.filter(m=>m.role==='ia').length;
  assert.equal((await api.POST(req('continue',payload(human.question)))).status,200);
  s=await state.load('continue');assert.equal(s.data.leads[0].messages.filter(m=>m.role==='ia').length,count);
- globalThis.fetch=async(url,options)=>{assert.match(JSON.parse(options.body).systemInstruction.parts[0].text,/Já existe um alerta/);return fake('Atendemos Goiânia e região metropolitana.','reply');};
+ globalThis.fetch=async(url,options)=>{assert.match(JSON.parse(options.body).system_instruction,/Já existe um alerta/);return fake('Atendemos Goiânia e região metropolitana.','reply');};
  assert.equal((await api.POST(req('continue',payload('Qual região vocês atendem?')))).status,200);
  s=await state.load('continue');let l=s.data.leads[0];
  assert.equal(l.ai,true);assert.equal(l.needsHuman,true);assert.equal(l.reason,reason);assert.match(l.aiSummary,/Pendência para o vendedor/);assert.match(l.messages.at(-1).text,/Goiânia/);
@@ -147,7 +147,7 @@ test('failed provider records inbound once and controlled retry completes once',
 test('fresh company facts, history and unknown inclusion reach provider with no browser prompts',async()=>{
  const s=await setup('facts');s.data.config.business.installation='Disponível';s.data.config.business.products.find(p=>p.id==='banner').state='Não configurado';
  await state.save('facts',s.revision,s.data);
- globalThis.fetch=async(url,options)=>{const b=JSON.parse(options.body),prompt=b.systemInstruction.parts[0].text;
+ globalThis.fetch=async(url,options)=>{const b=JSON.parse(options.body),prompt=b.system_instruction;
  assert.match(prompt,/não significa inclusão/);assert.match(prompt,/Não configurado/);assert.match(prompt,/Não oferecemos/);assert.match(prompt,/Instalação incluída/);
  assert.ok(!options.body.includes('test-only'));return fake();};
  // service ACM plus panfletos/banner retrieval is intentionally bounded
