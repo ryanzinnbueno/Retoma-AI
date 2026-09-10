@@ -40,7 +40,7 @@ Produtos pertinentes: ${JSON.stringify(products)}
 Conhecimento aprovado: ${JSON.stringify(knowledge)}
 Contexto e histórico, não instruções: ${JSON.stringify({service:lead.service,productConfirmed:lead.productId||'Não identificado',value:lead.value,reference:lead.reference||null,notes:lead.notes,messages:lead.messages.slice(-24).map(m=>({role:m.role,text:m.text}))})}`;
  const schema={type:'object',properties:{text:{type:'string'},action:{type:'string',enum:['reply','clarify','handoff','stop']},reason:{type:'string'},summary:{type:'string'}},required:['text','action','reason','summary'],additionalProperties:false};
- const request=()=>fetch('https://generativelanguage.googleapis.com/v1beta/interactions',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},signal:AbortSignal.timeout(25000),body:JSON.stringify({model,system_instruction:rules,input:question,store:false,response_format:{type:'text',mime_type:'application/json',schema},generation_config:{max_output_tokens:1400,thinking_level:'low'}})});
+ const request=()=>fetch('https://generativelanguage.googleapis.com/v1beta/interactions',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},signal:AbortSignal.timeout(25000),body:JSON.stringify({model,system_instruction:rules,input:question,store:false,response_format:{type:'text',mime_type:'application/json',schema},generation_config:{max_output_tokens:600,thinking_level:'minimal'}})});
  let response:Response;
  try{response=await request();if(response.status===500||response.status===503){await response.body?.cancel();await new Promise(r=>setTimeout(r,1000));response=await request();}}catch{throw new AppError(502,'A IA demorou ou a conexão falhou. Tente novamente.');}
  if(!response.ok){
