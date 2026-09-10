@@ -1,5 +1,9 @@
 const API='https://retoma-ai.rogerio-ryan4057.workers.dev';
 chrome.runtime.onMessage.addListener((message,_sender,sendResponse)=>{
+ if(message?.type==='retoma-notify'){
+  chrome.notifications.create('retoma-'+Date.now(),{type:'basic',iconUrl:'retoma-icon.png',title:message.title||'Retoma precisa de você',message:message.message||'Um cliente pediu atendimento humano.',priority:2});
+  sendResponse({ok:true});return;
+ }
  if(message?.type!=='retoma-api')return;
  (async()=>{
   const {token}=await chrome.storage.local.get('token');

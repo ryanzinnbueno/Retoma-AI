@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Retoma — Assistente para WhatsApp Web",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Acompanha conversas autorizadas, responde com IA e sincroniza o contexto com o Retoma.",
-  "permissions": ["storage", "clipboardWrite"],
+  "permissions": ["storage", "clipboardWrite", "notifications"],
   "host_permissions": ["https://retoma-ai.rogerio-ryan4057.workers.dev/*"],
   "background": {"service_worker": "background.js"},
   "icons": {"16": "retoma-icon.png", "48": "retoma-icon.png", "128": "retoma-icon.png"},
