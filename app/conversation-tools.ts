@@ -3,8 +3,18 @@ import type {Config} from './recovery-model';
 import {allCatalogue} from './business-model';
 import {normalize} from './recovery-model';
 
+export function dedupeRepeatedText(text:string){
+ const value=text.trim();
+ for(let cut=Math.floor(value.length/2)-2;cut<=Math.ceil(value.length/2)+2;cut++){
+  if(cut<1)continue;const first=value.slice(0,cut).trim(),second=value.slice(cut).trim();
+  const sentenceCount=(first.match(/[.!?]/g)||[]).length;
+  if(value.length<=1000&&first.length>20&&sentenceCount<=8&&first.localeCompare(second,'pt-BR',{sensitivity:'base'})===0)return first;
+ }
+ return value;
+}
+
 export function shortMessages(text:string){
- const sentences=text.trim().split(/\n+|(?<=[.!?])\s+(?=[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ0-9])/u).filter(Boolean);
+ const sentences=dedupeRepeatedText(text).split(/\n+|(?<=[.!?])\s+(?=[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ0-9])/u).filter(Boolean);
  const chunks:string[]=[];
  for(const sentence of sentences){
   if(sentence.length<=260){if(chunks.length&&chunks[chunks.length-1].length+sentence.length+1<=260)chunks[chunks.length-1]+=' '+sentence;else chunks.push(sentence);}
@@ -13,7 +23,7 @@ export function shortMessages(text:string){
  return chunks;
 }
 export function conversationalMessages(text:string){
- const trimmed=text.trim();if(!trimmed)return [];
+ const trimmed=dedupeRepeatedText(text);if(!trimmed)return [];
  const paragraphs=trimmed.split(/\n{2,}/).map(part=>part.trim()).filter(Boolean);
  let parts=paragraphs.length>1?paragraphs.flatMap(shortMessages):shortMessages(trimmed);
  if(parts.length===1){

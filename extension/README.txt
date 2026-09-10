@@ -1,11 +1,11 @@
-RETOMA PARA WHATSAPP WEB — BETA 0.3.0
+RETOMA PARA WHATSAPP WEB — BETA 0.4.1
 
 1. Abra chrome://extensions no Chrome.
 2. Ative o modo do desenvolvedor.
 3. Clique em Carregar sem compactação e selecione esta pasta.
 4. No site Retoma, abra Configurações > WhatsApp e crie um código de vínculo.
-5. Abra a extensão, cole o código e clique em Vincular extensão.
-6. No WhatsApp Web, abra uma conversa autorizada e clique em Retoma > Acompanhar com IA.
+5. Abra a extensão, cole apenas esse código e clique em Salvar e testar vínculo.
+6. O atendimento automático de novas conversas já vem ativado. Você pode desligá-lo na extensão.
 
 Enquanto Chrome e WhatsApp Web estiverem abertos, a extensão verifica novas mensagens, solicita uma resposta à IA, envia blocos curtos e sincroniza o contexto com a Central de atendimento.
 
