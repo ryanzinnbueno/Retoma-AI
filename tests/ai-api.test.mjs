@@ -66,12 +66,14 @@ test('server timestamps closings; confirmed amounts retain closing date; client 
  const s=await setup('dates');s.data.leads[0].status='Vendido';s.data.leads[0].valueConfirmed=false;s.data.leads[0].events=[{id:'fake',at:'2000-01-01',status:'Vendido',value:99,confirmed:true}];
  await state.save('dates',s.revision,s.data);let saved=await state.load('dates');let e=saved.data.leads[0].events.at(-1);assert.notEqual(e.id,'fake');const at=e.at;
  saved.data.leads[0].valueConfirmed=true;saved.data.leads[0].value=1200;await state.save('dates',saved.revision,saved.data);saved=await state.load('dates');e=saved.data.leads[0].events.at(-1);assert.equal(e.at,at);assert.equal(e.value,1200);assert.equal(e.confirmed,true);
- const {periodResults,localDate,periodRange,shortMessages}=await import(await compile('app/conversation-tools.ts'));
+ const {periodResults,localDate,periodRange,shortMessages,conversationalMessages}=await import(await compile('app/conversation-tools.ts'));
  const day=localDate(at,'America/Bahia');const result=periodResults(saved.data.leads,day,day,'America/Bahia');assert.equal(result.sales.length,1);assert.equal(result.undated,1);
  assert.equal(periodResults(saved.data.leads,'2000-01-01','2000-01-02','America/Bahia').sales.length,0);
  assert.deepEqual(periodRange('week','America/Bahia',new Date('2026-09-06T20:00:00Z')),{from:'2026-08-31',to:'2026-09-06'});
  assert.equal(localDate('2026-09-01T01:00:00Z','America/Bahia'),'2026-08-31');
  const text='Uma explicação confirmada. '.repeat(40).trim();const parts=shortMessages(text);assert.ok(parts.length>1);assert.ok(parts.every(p=>p.length<=260));assert.equal(parts.join(' '),text);
+ assert.deepEqual(conversationalMessages('Primeira orientação. Segunda pergunta?'),['Primeira orientação.','Segunda pergunta?']);
+ assert.deepEqual(conversationalMessages('Resposta curta.'),['Resposta curta.']);
 });
 test('anonymous rejected; tenant state isolated and persistence survives reload',async()=>{
  assert.equal((await api.POST(req(null,payload()))).status,401);

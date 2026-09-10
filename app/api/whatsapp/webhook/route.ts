@@ -1,6 +1,6 @@
 import { env, waitUntil } from 'cloudflare:workers';
 import { business } from '../../../business-model';
-import { recordInterests, shortMessages } from '../../../conversation-tools';
+import { conversationalMessages, recordInterests } from '../../../conversation-tools';
 import { terminal, type Lead, type Message } from '../../../recovery-model';
 import { validateDecision } from '../../../server/decisions';
 import { generate, mandatory, type Decision } from '../../../server/gemini';
@@ -103,6 +103,18 @@ async function sendText(to: string, body: string) {
   if (!response.ok) { await response.body?.cancel(); throw new AppError(502, `WhatsApp recusou o envio (${response.status}).`); }
   await response.body?.cancel();
 }
+async function showTyping(messageId: string) {
+  const version = settings().META_GRAPH_VERSION?.trim() || 'v25.0';
+  const response = await fetch(`https://graph.facebook.com/${version}/${required('WHATSAPP_PHONE_NUMBER_ID')}/messages`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${required('WHATSAPP_ACCESS_TOKEN')}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messaging_product: 'whatsapp', status: 'read', message_id: messageId, typing_indicator: { type: 'text' } }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!response.ok) console.warn('WhatsApp typing indicator rejected', response.status);
+  await response.body?.cancel();
+}
+const delay = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 async function setDelivery(owner: string, leadId: number, messageId: string, delivery: Message['delivery']) {
   for (let attempt = 0; attempt < 2; attempt++) {
     const snapshot = await load(owner), lead = snapshot.data.leads.find((candidate) => candidate.id === leadId);
@@ -139,12 +151,14 @@ async function processQueued(owner: string, eventId: string) {
     if (!lead.ai || lead.optOut || terminal(lead) || business(snapshot.data.config).paused) {
       await db().prepare("UPDATE events SET status='done',result=? WHERE owner=? AND id=?").bind(JSON.stringify({ action: 'manual' }), owner, eventId).run(); return;
     }
+    await showTyping(eventId).catch((error) => console.warn('WhatsApp typing indicator failed', error instanceof Error ? error.message : 'unknown'));
     const mediaOnly = incoming.startsWith('[Cliente enviou');
     const forced: Decision | null = mediaOnly ? {
       text: 'Recebi seu arquivo. O vendedor foi avisado para analisar esse conteúdo. Enquanto isso, você pode me explicar por texto qual é a sua dúvida.',
       action: 'handoff', reason: 'Conteúdo precisa de análise do vendedor.', summary: incoming,
       references: ['central:unsupported-media-v1'], provider: 'Regra obrigatória',
     } : mandatory(incoming);
+    if (forced) await delay(650);
     const decision = forced || validateDecision(snapshot.data.config, lead, incoming, await generate(snapshot.data.config, lead, incoming, 'reply'));
     const latest = await load(owner), current = latest.data.leads.find((candidate) => candidate.id === lead!.id);
     if (!current || !current.ai || current.optOut || terminal(current) || business(latest.data.config).paused) {
@@ -160,7 +174,14 @@ async function processQueued(owner: string, eventId: string) {
     latest.data.leads = latest.data.leads.map((candidate) => candidate.id === next.id ? next : candidate);
     await commit(owner, latest.revision, latest.data);
     try {
-      for (const part of shortMessages(decision.text)) await sendText(item.message.from, part);
+      const parts = conversationalMessages(decision.text);
+      for (let index = 0; index < parts.length; index++) {
+        if (index > 0) {
+          await showTyping(eventId).catch(() => {});
+          await delay(Math.min(1600, 650 + parts[index].length * 7));
+        }
+        await sendText(item.message.from, parts[index]);
+      }
       await setDelivery(owner, next.id, replyId, 'sent');
       await db().prepare("UPDATE events SET status='done',result=? WHERE owner=? AND id=?").bind(JSON.stringify({ action: decision.action }), owner, eventId).run();
     } catch (error) { await setDelivery(owner, next.id, replyId, 'failed').catch(() => {}); throw error; }

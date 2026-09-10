@@ -12,6 +12,17 @@ export function shortMessages(text:string){
  }
  return chunks;
 }
+export function conversationalMessages(text:string){
+ const trimmed=text.trim();if(!trimmed)return [];
+ const paragraphs=trimmed.split(/\n{2,}/).map(part=>part.trim()).filter(Boolean);
+ let parts=paragraphs.length>1?paragraphs.flatMap(shortMessages):shortMessages(trimmed);
+ if(parts.length===1){
+  const sentences=trimmed.split(/(?<=[.!?])\s+(?=[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ0-9])/u).map(part=>part.trim()).filter(Boolean);
+  if(sentences.length>1)parts=sentences.flatMap(shortMessages);
+ }
+ if(parts.length<=4)return parts;
+ return [...parts.slice(0,3),parts.slice(3).join(' ')];
+}
 export function recordInterests(lead:Lead,config:Config,question:string,messageId:string,at:string):Lead['interests']{
  if(!lead.consent||lead.optOut)return lead.interests||[];
  const q=normalize(question);
