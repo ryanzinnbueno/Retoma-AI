@@ -1,7 +1,7 @@
 (()=>{
  if(document.querySelector('#retoma-launcher'))return;
  const icon=chrome.runtime.getURL('retoma-icon.png');
- const runtime={contactKey:'',contactName:'',active:false,tracked:false,busy:false,sending:false,ready:false,lastFingerprint:'',summary:'',needsHuman:false,reason:'',pending:null,lastScan:0,lastStatus:0};
+ const runtime={contactKey:'',contactName:'',active:false,tracked:false,busy:false,sending:false,ready:false,lastFingerprint:'',summary:'',needsHuman:false,reason:'',pending:null,lastScan:0,lastStatus:0,lastOutbox:0};
  const escape=value=>String(value??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
  const normal=value=>String(value||'').replace(/\s+/g,' ').trim().toLocaleLowerCase('pt-BR');
  const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -31,7 +31,7 @@
   launcherState();const panel=document.querySelector('#retoma-panel');if(!panel)return;
   const label=panel.querySelector('#retoma-contact'),status=panel.querySelector('#retoma-status'),body=panel.querySelector('#retoma-dynamic');
   label.textContent=runtime.contactName||'Abra uma conversa';
-  status.textContent=runtime.busy?'Processando nova mensagem…':runtime.needsHuman?'Vendedor avisado · IA ainda ativa':runtime.active?'Acompanhamento automático ativo':runtime.tracked?'Atendimento manual':'Ainda não acompanhada';
+  status.textContent=runtime.sending&&runtime.pending?.sender==='vendedor'?'Enviando mensagem do Retoma…':runtime.busy?'Processando nova mensagem…':runtime.needsHuman?'Vendedor avisado · IA ainda ativa':runtime.active?'Acompanhamento automático ativo':runtime.tracked?'Atendimento manual':'Ainda não acompanhada';
   status.className='retoma-status '+(runtime.needsHuman?'attention':runtime.active?'online':'');
   if(!runtime.contactKey){body.innerHTML='<div class="retoma-empty"><b>Abra uma conversa</b><p>Depois ative a IA uma única vez para começar o acompanhamento.</p></div>';return;}
   if(runtime.active||runtime.pending){body.innerHTML=`<section class="retoma-live"><div class="retoma-orbit"><span></span><img src="${icon}" alt=""></div><small>IA EM ACOMPANHAMENTO</small><h2>${runtime.busy?'Entendendo a conversa…':'Tudo sendo acompanhado.'}</h2><p>A Retoma responde novas mensagens e salva o contexto no seu painel.</p></section>${runtime.needsHuman?`<section class="retoma-alert"><b>Você foi avisado</b><p>${escape(runtime.reason||'Esta conversa precisa da avaliação do vendedor.')}</p><small>A IA continua respondendo outras dúvidas até você assumir.</small></section>`:''}${runtime.summary?`<section class="retoma-summary"><span>RESUMO ATUAL</span><p>${escape(runtime.summary)}</p></section>`:''}<div class="retoma-actions"><button id="retoma-pause" class="retoma-secondary">Assumir e pausar a IA</button></div><div class="retoma-tip"><b>Várias conversas</b><p>Conversas ativadas são verificadas quando aparecem com mensagem não lida no WhatsApp Web.</p></div>`;body.querySelector('#retoma-pause')?.addEventListener('click',pause);return;}
@@ -54,7 +54,7 @@
  async function sendPart(text){const box=composer();if(!box)throw new Error('O campo de mensagem do WhatsApp não foi encontrado. Atualize a página e tente novamente.');if(box.textContent?.trim())throw new Error('Há um texto sendo digitado pelo vendedor. A IA foi pausada para não sobrescrevê-lo.');box.focus();await wait(Math.min(1600,450+text.length*5));document.execCommand('insertText',false,text);box.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:text}));await wait(250);const button=sendButton();if(!button)throw new Error('O botão Enviar não foi encontrado. O WhatsApp Web pode ter mudado.');button.click();await wait(850);}
  async function deliver(reply){
   if(runtime.sending)return;runtime.sending=true;runtime.busy=true;runtime.pending=reply;render();const expected=runtime.contactKey;
-  try{for(const part of reply.parts?.length?reply.parts:[reply.text]){if(identity()?.key!==expected)throw new Error('A conversa mudou antes do envio. Volte ao contato para continuar.');await sendPart(part);}await api({mode:'sent',contactKey:expected,contactName:runtime.contactName,requestMessageId:reply.requestMessageId,messages:transcript()});runtime.pending=null;runtime.summary=reply.summary||runtime.summary;runtime.needsHuman=reply.needsHuman;runtime.reason=reply.reason||'';runtime.active=!reply.stop;runtime.lastFingerprint=fingerprint(transcript());await remember(runtime.active);}
+  try{for(const part of reply.parts?.length?reply.parts:[reply.text]){if(identity()?.key!==expected)throw new Error('A conversa mudou antes do envio. Volte ao contato para continuar.');await sendPart(part);}await api({mode:'sent',contactKey:expected,contactName:runtime.contactName,requestMessageId:reply.requestMessageId,messages:transcript()});runtime.pending=null;runtime.summary=reply.summary||runtime.summary;runtime.needsHuman=reply.needsHuman;runtime.reason=reply.reason||'';runtime.active=reply.sender==='vendedor'?false:!reply.stop;runtime.lastFingerprint=fingerprint(transcript());await remember(runtime.active);}
   catch(e){if(/sendo digitado/.test(e.message)){runtime.sending=false;await sellerTookOver();}else showError(e.message);}finally{runtime.sending=false;runtime.busy=false;render();}
  }
  async function processCurrent(){
@@ -64,9 +64,19 @@
  }
  async function scanUnread(){if(runtime.busy||runtime.sending||Date.now()-runtime.lastScan<8000)return;runtime.lastScan=Date.now();const contacts=await stored(),active=Object.values(contacts).filter(c=>c.active);if(!active.length)return;const rows=[...document.querySelectorAll('#pane-side [role="listitem"], #pane-side [role="row"], #pane-side [data-testid="cell-frame-container"]')];for(const row of rows){const title=[...row.querySelectorAll('[title]')].map(e=>e.getAttribute('title')?.trim()).find(Boolean);if(!title||normal(title)===runtime.contactKey)continue;const tracked=active.find(c=>normal(c.name)===normal(title));if(!tracked)continue;const unread=row.querySelector('[aria-label*="não lida" i],[aria-label*="unread" i],[data-testid*="unread" i]');if(unread){row.click();await wait(1600);await hydrate(true);break;}}
  }
+ async function pollOutbox(){
+  if(runtime.busy||runtime.sending||Date.now()-runtime.lastOutbox<5000)return false;runtime.lastOutbox=Date.now();
+  try{
+   const data=await api({mode:'outbox'}),item=data.items?.[0];if(!item)return false;
+   if(runtime.contactKey===item.contactKey){await hydrate(true);return true;}
+   const rows=[...document.querySelectorAll('#pane-side [role="listitem"], #pane-side [role="row"], #pane-side [data-testid="cell-frame-container"]')];
+   const row=rows.find(candidate=>[...candidate.querySelectorAll('[title]')].some(element=>{const title=element.getAttribute('title')?.trim();return title&&(normal(title)===item.contactKey||normal(title)===normal(item.contactName));}));
+   if(!row)return false;row.click();await wait(1600);await hydrate(true);return true;
+  }catch{return false;}
+ }
  const launcher=document.createElement('button');launcher.id='retoma-launcher';launcher.innerHTML=`<img src="${icon}" alt=""><span>Retoma</span><i></i>`;launcher.addEventListener('click',openPanel);document.body.appendChild(launcher);
  document.addEventListener('input',event=>{const target=event.target;if(event.isTrusted&&target instanceof Element&&target.closest('#main footer')&&target.matches('[contenteditable="true"]'))void sellerTookOver();},true);
  const observer=new MutationObserver(()=>{clearTimeout(runtime.mutationTimer);runtime.mutationTimer=setTimeout(()=>void tick(),500);});observer.observe(document.body,{subtree:true,childList:true});
- async function tick(){const current=identity();if(current?.key!==runtime.contactKey)await hydrate(true);else if(current&&runtime.ready&&!runtime.busy&&!runtime.sending&&Date.now()-runtime.lastStatus>10000)await hydrate(true);else if(runtime.active&&!runtime.busy&&!runtime.sending){const items=transcript(),mark=fingerprint(items);if(mark!==runtime.lastFingerprint){const last=items.at(-1);runtime.lastFingerprint=mark;if(last?.role==='cliente')await processCurrent();else if(runtime.ready&&last?.role==='vendedor')await sellerTookOver();}}await scanUnread();}
+ async function tick(){if(await pollOutbox())return;const current=identity();if(current?.key!==runtime.contactKey)await hydrate(true);else if(current&&runtime.ready&&!runtime.busy&&!runtime.sending&&Date.now()-runtime.lastStatus>10000)await hydrate(true);else if(runtime.active&&!runtime.busy&&!runtime.sending){const items=transcript(),mark=fingerprint(items);if(mark!==runtime.lastFingerprint){const last=items.at(-1);runtime.lastFingerprint=mark;if(last?.role==='cliente')await processCurrent();else if(runtime.ready&&last?.role==='vendedor')await sellerTookOver();}}await scanUnread();}
  setInterval(()=>void tick(),2200);void hydrate(true);
 })();

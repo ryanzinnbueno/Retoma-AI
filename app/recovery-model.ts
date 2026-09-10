@@ -1,7 +1,7 @@
 export const statuses = ['Parado', 'Conversando', 'Vendido', 'Encerrado'] as const;
 export type Status = typeof statuses[number];
 export type Message = { role: 'cliente' | 'vendedor' | 'ia'; text: string; kind?: 'quote'; provider?: string; id?:string; createdAt?:string; delivery?:'demo'|'suggested'|'received'|'sent'|'pending'|'failed'; action?:string; references?:string[] };
-export type PendingExtensionReply={requestMessageId:string;text:string;parts:string[];summary:string;needsHuman:boolean;reason:string;stop:boolean;createdAt:string};
+export type PendingExtensionReply={requestMessageId:string;text:string;parts:string[];summary:string;needsHuman:boolean;reason:string;stop:boolean;createdAt:string;sender?:'ia'|'vendedor'};
 export type Lead = {
  events?:{id:string;at:string;status:Status;value:number|null;confirmed:boolean}[];
  interests?:{productId:string;evidence:string;messageId:string;at:string;kind:'mention'|'declared'}[];
