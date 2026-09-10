@@ -1,4 +1,4 @@
-const API='https://retoma-orcamentos-ruben.rogerio-ryan4057.chatgpt.site';
+const API='https://retoma-ai.rogerio-ryan4057.workers.dev';
 chrome.runtime.onMessage.addListener((message,_sender,sendResponse)=>{
  if(message?.type!=='retoma-api')return;
  (async()=>{

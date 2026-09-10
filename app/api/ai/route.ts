@@ -7,7 +7,7 @@ import { terminal,type Lead } from '../../recovery-model';
 export async function POST(req:Request){
  let owner='',eventId='',claimed=false;
  try{
-  origin(req);owner=identity(req);const body=await readBody(req);
+  origin(req);owner=await identity(req);const body=await readBody(req);
   const {leadId,question,mode='reply',messageId,retry=false}=body;
   if(!Number.isSafeInteger(leadId)||typeof question!=='string'||!question.trim()||question.length>2000||!['reply','followup'].includes(mode)||typeof messageId!=='string'||! /^[a-zA-Z0-9-]{16,80}$/.test(messageId))throw new AppError(400,'Mensagem ou acompanhamento inválido.');
   eventId=messageId;

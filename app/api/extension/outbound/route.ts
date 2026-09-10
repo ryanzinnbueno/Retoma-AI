@@ -4,7 +4,7 @@ import {terminal,type Lead,type PendingExtensionReply} from '../../../recovery-m
 
 export async function POST(req:Request){
  try{
-  origin(req);const owner=identity(req),body=await readBody(req);
+  origin(req);const owner=await identity(req),body=await readBody(req);
   if(!Number.isInteger(body.leadId)||body.leadId<1)throw new AppError(400,'Conversa inválida.');
   if(typeof body.text!=='string'||!body.text.trim())throw new AppError(400,'Escreva uma mensagem.');
   const text=body.text.trim();if(text.length>4000)throw new AppError(400,'A mensagem deve ter no máximo 4.000 caracteres.');

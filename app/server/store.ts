@@ -2,7 +2,13 @@ import { env } from 'cloudflare:workers';
 import { seed, guided, validateWorkspace, type Workspace } from '../business-model';
 export class AppError extends Error{constructor(public status:number,message:string){super(message)}}
 export function db(){const binding=(env as unknown as {DB?:D1Database}).DB;if(!binding)throw new AppError(503,'Armazenamento indisponível.');return binding;}
-export function identity(req:Request){const id=req.headers.get('oai-authenticated-user-id');if(id)return id;if(import.meta.env.DEV&&['localhost','127.0.0.1'].includes(new URL(req.url).hostname))return 'local-demo';throw new AppError(401,'Entre na sua conta para acessar esta empresa.');}
+export async function identity(req:Request){
+ const runtime=env as unknown as {RETOMA_PROXY_SECRET?:string;WHATSAPP_WORKSPACE_OWNER?:string};
+ if(import.meta.env.DEV&&['localhost','127.0.0.1'].includes(new URL(req.url).hostname))return 'local-demo';
+ if(runtime.RETOMA_PROXY_SECRET){if(req.headers.get('x-retoma-proxy-secret')===runtime.RETOMA_PROXY_SECRET)return runtime.WHATSAPP_WORKSPACE_OWNER||'retoma-principal';throw new AppError(401,'Acesso não autorizado.');}
+ const id=req.headers.get('oai-authenticated-user-id');if(id)return id;
+ throw new AppError(401,'Entre na sua conta para acessar esta empresa.');
+}
 export function origin(req:Request){const o=req.headers.get('origin');if(o&&o!==new URL(req.url).origin)throw new AppError(403,'Origem não autorizada.');}
 export const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
 export function failure(e:unknown){return json({error:e instanceof AppError?e.message:'Não foi possível concluir. Nenhum envio real foi realizado.'},e instanceof AppError?e.status:500);}
