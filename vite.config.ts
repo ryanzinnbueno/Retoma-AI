@@ -15,6 +15,16 @@ const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === 'seatbelt';
 const localBindingConfig = {
   main: 'vinext/server/fetch-handler',
   compatibility_flags: ['nodejs_compat'],
+  // Wrangler replaces dashboard text variables on deploy, so production-safe
+  // values must live in the generated Worker configuration.
+  vars: {
+    GEMINI_MODEL: 'gemini-2.5-flash-lite',
+    WHATSAPP_PHONE_NUMBER_ID: '1268172406387019',
+    WHATSAPP_WABA_ID: '2545415742569584',
+    WHATSAPP_WORKSPACE_OWNER: 'retoma-principal',
+    META_APP_ID: '2577354159356046',
+    META_GRAPH_VERSION: 'v25.0',
+  },
   d1_databases: d1
     ? [
         {
