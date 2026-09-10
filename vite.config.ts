@@ -14,6 +14,7 @@ const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === 'seatbelt';
 
 const localBindingConfig = {
   main: 'vinext/server/fetch-handler',
+  keep_vars: true,
   compatibility_flags: ['nodejs_compat'],
   // Wrangler replaces dashboard text variables on deploy, so production-safe
   // values must live in the generated Worker configuration.
