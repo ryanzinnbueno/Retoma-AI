@@ -1,127 +1,1756 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
-import { RotateCcw, MessageCircle, Layers3, TrendingUp, BookOpen, Settings2, Bell, Plus, Search, ArrowUpRight, ArrowRight, Sparkles, UserRound, Send, FileText, CheckCheck, Check, Clock3, Play, Pause, ShieldCheck, ChevronRight, CircleDollarSign, MessageSquareText, CircleHelp, Zap, Headphones, FlaskConical, CalendarDays, Activity } from 'lucide-react';
+import {
+  RotateCcw,
+  MessageCircle,
+  Layers3,
+  TrendingUp,
+  BookOpen,
+  Settings2,
+  Bell,
+  Plus,
+  Search,
+  ArrowUpRight,
+  ArrowRight,
+  Sparkles,
+  UserRound,
+  Send,
+  FileText,
+  CheckCheck,
+  Check,
+  Clock3,
+  Play,
+  Pause,
+  ShieldCheck,
+  ChevronRight,
+  CircleDollarSign,
+  MessageSquareText,
+  CircleHelp,
+  Zap,
+  Headphones,
+  FlaskConical,
+  CalendarDays,
+  Activity,
+} from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet';
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from '@/components/ui/native-select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Table, TableHeader, TableHead, TableRow, TableBody, TableCell } from '@/components/ui/table';
+import {
+  Table,
+  TableHeader,
+  TableHead,
+  TableRow,
+  TableBody,
+  TableCell,
+} from '@/components/ui/table';
 import { Toaster, toast } from '@/components/ui/toast';
 import { School, SettingsPage } from './ai-school';
-import { initialLeads, initialConfig, statuses, money, terminal, changeStatus, activate, receiveMessage, followup, summarize, type Lead, type Status, type Config } from './recovery-model';
+import {
+  initialLeads,
+  initialConfig,
+  statuses,
+  money,
+  terminal,
+  changeStatus,
+  activate,
+  receiveMessage,
+  followup,
+  summarize,
+  type Lead,
+  type Status,
+  type Config,
+} from './recovery-model';
 
 import { askAI } from './ai-client';
-import {PeriodResults} from './period-results';
-import {MessageBody} from './message-body';
-import {useWorkspace} from './use-workspace';
-import {business,allCatalogue} from './business-model';
-import {queueExtensionMessage} from './extension-client';
+import { PeriodResults } from './period-results';
+import { MessageBody } from './message-body';
+import { useWorkspace } from './use-workspace';
+import { business, allCatalogue } from './business-model';
+import { sendWhatsAppMessage } from './whatsapp-client';
 
-const initials=(name:string)=>name.split(' ').filter(Boolean).map(p=>p[0]).slice(0,2).join('');
-function Avatar({lead,small=false}:{lead:Lead;small?:boolean}){return <span className={`person-avatar person-${lead.id%5} ${small?'small':''}`}>{initials(lead.name)}</span>}
-function StatusPill({status}:{status:Status}){return <span className={`pill status-${statuses.indexOf(status)}`}><span className="dot"/>{status}</span>}
-function Heading({eyebrow,title,subtitle,children}:{eyebrow:string;title:string;subtitle:string;children?:React.ReactNode}){return <div className="page-title"><div><div className="eyebrow">{eyebrow}</div><h1>{title}</h1><p>{subtitle}</p></div>{children}</div>}
+const initials = (name: string) =>
+  name
+    .split(' ')
+    .filter(Boolean)
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join('');
+function Avatar({ lead, small = false }: { lead: Lead; small?: boolean }) {
+  return (
+    <span
+      className={`person-avatar person-${lead.id % 5} ${small ? 'small' : ''}`}
+    >
+      {initials(lead.name)}
+    </span>
+  );
+}
+function StatusPill({ status }: { status: Status }) {
+  return (
+    <span className={`pill status-${statuses.indexOf(status)}`}>
+      <span className="dot" />
+      {status}
+    </span>
+  );
+}
+function Heading({
+  eyebrow,
+  title,
+  subtitle,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="page-title">
+      <div>
+        <div className="eyebrow">{eyebrow}</div>
+        <h1>{title}</h1>
+        <p>{subtitle}</p>
+      </div>
+      {children}
+    </div>
+  );
+}
 
-export default function Dashboard(){
- const workspace=useWorkspace();
- const {leads,setLeads,config,setConfig}=workspace;
- const [view,setView]=useState('workspace'),[active,setActive]=useState(1),[sideTab,setSideTab]=useState('follow');
- const [search,setSearch]=useState(''),[filter,setFilter]=useState('Todos'),[query,setQuery]=useState('');
- const [draft,setDraft]=useState(''),[simulation,setSimulation]=useState('Vocês fazem instalação?');
- const [activation,setActivation]=useState(false),[consent,setConsent]=useState(false),[newQuote,setNewQuote]=useState(false),[notifications,setNotifications]=useState(false);
- const [busy,setBusy]=useState(false),[sendingReal,setSendingReal]=useState(false),[aiError,setAIError]=useState('');
- const [animateReplyId,setAnimateReplyId]=useState('');
- const [interruptedReplyId,setInterruptedReplyId]=useState('');
- const pending=useRef(false);
- const lastAttempt=useRef<{key:string;id:string;failed:boolean}|null>(null);
- const messageEnd=useRef<HTMLDivElement>(null);
- const lead=leads.find(l=>l.id===active)||leads[0];
- const real=!!lead.externalId?.startsWith('whatsapp-web:'),realCount=leads.filter(l=>l.externalId?.startsWith('whatsapp-web:')).length;
- const summary=summarize(lead);
- const alerts=leads.filter(l=>l.needsHuman);
- const sold=leads.filter(l=>l.status==='Vendido');
- const open=leads.filter(l=>!terminal(l));
- const activeAI=leads.filter(l=>l.ai);
- const stopped=open.filter(l=>l.status==='Parado');
- const update=(id:number,fn:(l:Lead)=>Lead)=>setLeads(ls=>ls.map(l=>l.id===id?fn(l):l));
- const notify=(title:string,description?:string)=>toast.add({title,description,type:'success'});
- const select=(l:Lead)=>{setActive(l.id);setDraft('');setSideTab(l.needsHuman?'summary':'follow');setView('workspace')};
- function handover(){setInterruptedReplyId(animateReplyId);update(lead.id,l=>({...l,ai:false,needsHuman:false,pendingExtensionReply:undefined,due:'Atendimento manual',history:[...l.history,'Vendedor assumiu a conversa com o resumo disponível.']}));setSideTab('summary');notify('Você assumiu o atendimento','A IA está pausada nesta conversa.');}
- async function sendRealMessage(){
-  const text=draft.trim();if(!text||sendingReal||lead.ai||lead.optOut||terminal(lead)||lead.pendingExtensionReply)return;
-  setSendingReal(true);setAIError('');
-  try{await workspace.flush();await queueExtensionMessage(lead.id,text);setDraft('');await workspace.reload();notify('Mensagem enviada para a extensão','O WhatsApp Web fará o envio assim que localizar esta conversa.');}
-  catch(e){setAIError(e instanceof Error?e.message:'Não foi possível enviar pelo WhatsApp Web.');await workspace.reload().catch(()=>{});}
-  finally{setSendingReal(false);}
- }
- function onStatus(status:Status){update(lead.id,l=>({...changeStatus(l,status),valueConfirmed:false}));notify(`Conversa: ${status}`,status==='Vendido'?'Fechamento informado pelo vendedor; não representa pagamento verificado.':undefined);}
- async function runAI(isFollowup=false){
-  if(pending.current||terminal(lead)||lead.optOut||(!isFollowup&&!simulation.trim()))return;
-  pending.current=true;setBusy(true);setAIError('');
-  setInterruptedReplyId(animateReplyId);
-  const question=isFollowup?'Prepare a próxima retomada autorizada.':simulation.trim();
-  const key=lead.id+'|'+isFollowup+'|'+question;
-  const attempt=lastAttempt.current?.key===key&&lastAttempt.current.failed?lastAttempt.current:{key,id:crypto.randomUUID(),failed:false};
-  lastAttempt.current=attempt;
-  try{
-   await workspace.flush();
-   const result=await askAI(lead.id,question,attempt.id,isFollowup?'followup':'reply',attempt.failed);
-   setAnimateReplyId(attempt.id+'-reply');
-   await workspace.flush();await workspace.reload();
-   lastAttempt.current=null;
-   if(result.data?.leads.find((l:Lead)=>l.id===lead.id)?.needsHuman)setSideTab('summary');
-  }catch(e){attempt.failed=true;setAIError(e instanceof Error?e.message:'Falha ao consultar a IA.');await workspace.reload().catch(()=>{});}
-  finally{pending.current=false;setBusy(false);}
- }
- const incoming=()=>runAI(false);
- const nextFollowup=()=>runAI(true);
- useEffect(()=>{const stream=messageEnd.current?.parentElement;if(stream)stream.scrollTop=stream.scrollHeight;},[lead.id,lead.messages.length]);
- useEffect(()=>{
-  const context=(document as Document & {modelContext?:{registerTool:(tool:unknown,options:{signal:AbortSignal})=>void|Promise<void>}}).modelContext;
-  if(!context?.registerTool)return;
-  const lifecycle=new AbortController();
-  try{Promise.resolve(context.registerTool({name:'navigate_retoma',description:'Navega entre as áreas do Retoma.',inputSchema:{type:'object',properties:{view:{type:'string',enum:['workspace','pipeline','results','knowledge','settings']}},required:['view'],additionalProperties:false},annotations:{readOnlyHint:false},execute:(input:unknown)=>{const target=(input as {view?:unknown})?.view;if(typeof target!=='string'||!['workspace','pipeline','results','knowledge','settings'].includes(target))throw new Error('Área inválida');flushSync(()=>setView(target));return {view:target}}},{signal:lifecycle.signal})).catch(()=>{});}catch{}
-  return ()=>lifecycle.abort();
- },[]);
- const canFollow=!business(config).paused&&!lead.recoveryPaused&&lead.ai&&lead.status==='Parado'&&lead.consent&&!lead.optOut&&config.followups&&lead.attempts<config.days.length;
- const filtered=leads.filter(l=>(l.name+' '+l.company+' '+l.service).toLowerCase().includes(query.toLowerCase())&&(filter==='Todos'||(filter==='Precisa de você'?l.needsHuman:l.status===filter)));
- if(!workspace.ready)return <div className="content-page"><h1>Retoma</h1><p>{workspace.error||'Carregando sua empresa…'}</p></div>;
- return <Toaster><div className="retoma-shell"><Tabs value={view} onValueChange={v=>setView(String(v))} className="main-tabs">
- <header className="brand-header"><a className="retoma-logo" href="#" onClick={e=>{e.preventDefault();setView('workspace')}}><img src="/retoma-icon.png" alt="Símbolo Retoma"/><span className="brand-name">retoma</span><span className="brand-edition">oportunidades</span></a><div className="company-switch"><span className="company-initials">FV</span><div>{config.company}<small>Comunicação visual</small></div></div><div className="header-actions"><span className="prototype-tag"><span className="dot"/>Beta com WhatsApp Web</span><button className="notification-button" onClick={()=>setNotifications(true)} aria-label={`Notificações: ${alerts.length} conversas precisam de você`}><Bell size={20}/>{alerts.length>0&&<b>{alerts.length}</b>}</button><span className="profile-avatar">RV</span></div></header>
- <div className="nav-row"><TabsList className="main-nav"><TabsTrigger value="workspace"><MessageCircle size={18}/>Atendimento</TabsTrigger><TabsTrigger value="pipeline"><Layers3 size={18}/>Recuperações</TabsTrigger><TabsTrigger value="results"><TrendingUp size={18}/>Resultados</TabsTrigger><TabsTrigger value="knowledge"><BookOpen size={18}/>Assistente</TabsTrigger><TabsTrigger value="settings"><Settings2 size={18}/>Configurações</TabsTrigger></TabsList><span className="connection-note"><ShieldCheck size={14}/>Extensão disponível para teste</span></div>
- <div className={'sync-banner '+(workspace.error?'error':'')} role="status">{workspace.error||(workspace.saving?'Salvando alterações…':'Atendimento sincronizado.')}{business(config).paused&&<strong>Automação em pausa geral</strong>}</div><div className={'simulation-banner '+(real?'is-live':'')}><FlaskConical size={15}/><span>{real?'Conversa recebida da extensão. Mensagens automáticas são enviadas pelo WhatsApp Web enquanto ele estiver aberto.':'Demonstração com dados fictícios. Conecte a extensão para acompanhar conversas reais.'}</span></div>
+export default function Dashboard() {
+  const workspace = useWorkspace();
+  const { leads, setLeads, config, setConfig } = workspace;
+  const [view, setView] = useState('workspace'),
+    [active, setActive] = useState(1),
+    [sideTab, setSideTab] = useState('follow');
+  const [search, setSearch] = useState(''),
+    [filter, setFilter] = useState('Todos'),
+    [query, setQuery] = useState('');
+  const [draft, setDraft] = useState(''),
+    [simulation, setSimulation] = useState('Vocês fazem instalação?');
+  const [activation, setActivation] = useState(false),
+    [consent, setConsent] = useState(false),
+    [newQuote, setNewQuote] = useState(false),
+    [notifications, setNotifications] = useState(false);
+  const [busy, setBusy] = useState(false),
+    [sendingReal, setSendingReal] = useState(false),
+    [aiError, setAIError] = useState('');
+  const [animateReplyId, setAnimateReplyId] = useState('');
+  const [interruptedReplyId, setInterruptedReplyId] = useState('');
+  const pending = useRef(false);
+  const lastAttempt = useRef<{
+    key: string;
+    id: string;
+    failed: boolean;
+  } | null>(null);
+  const messageEnd = useRef<HTMLDivElement>(null);
+  const lead = leads.find((l) => l.id === active) || leads[0];
+  const real = !!lead.externalId?.startsWith('whatsapp-'),
+    direct = !!lead.externalId?.startsWith('whatsapp-direct:'),
+    realCount = leads.filter((l) =>
+      l.externalId?.startsWith('whatsapp-'),
+    ).length;
+  const summary = summarize(lead);
+  const alerts = leads.filter((l) => l.needsHuman);
+  const sold = leads.filter((l) => l.status === 'Vendido');
+  const open = leads.filter((l) => !terminal(l));
+  const activeAI = leads.filter((l) => l.ai);
+  const stopped = open.filter((l) => l.status === 'Parado');
+  const update = (id: number, fn: (l: Lead) => Lead) =>
+    setLeads((ls) => ls.map((l) => (l.id === id ? fn(l) : l)));
+  const notify = (title: string, description?: string) =>
+    toast.add({ title, description, type: 'success' });
+  const select = (l: Lead) => {
+    setActive(l.id);
+    setDraft('');
+    setSideTab(l.needsHuman ? 'summary' : 'follow');
+    setView('workspace');
+  };
+  function handover() {
+    setInterruptedReplyId(animateReplyId);
+    update(lead.id, (l) => ({
+      ...l,
+      ai: false,
+      needsHuman: false,
+      pendingExtensionReply: undefined,
+      due: 'Atendimento manual',
+      history: [
+        ...l.history,
+        'Vendedor assumiu a conversa com o resumo disponível.',
+      ],
+    }));
+    setSideTab('summary');
+    notify('Você assumiu o atendimento', 'A IA está pausada nesta conversa.');
+  }
+  async function sendRealMessage() {
+    const text = draft.trim();
+    if (
+      !text ||
+      sendingReal ||
+      lead.ai ||
+      lead.optOut ||
+      terminal(lead) ||
+      lead.pendingExtensionReply
+    )
+      return;
+    setSendingReal(true);
+    setAIError('');
+    try {
+      await workspace.flush();
+      await sendWhatsAppMessage(lead.id, text, direct);
+      setDraft('');
+      await workspace.reload();
+      notify(
+        'Mensagem enviada',
+        'A resposta já foi entregue ao WhatsApp conectado.',
+      );
+    } catch (e) {
+      setAIError(
+        e instanceof Error
+          ? e.message
+          : 'Não foi possível enviar pelo WhatsApp.',
+      );
+      await workspace.reload().catch(() => {});
+    } finally {
+      setSendingReal(false);
+    }
+  }
+  function onStatus(status: Status) {
+    update(lead.id, (l) => ({
+      ...changeStatus(l, status),
+      valueConfirmed: false,
+    }));
+    notify(
+      `Conversa: ${status}`,
+      status === 'Vendido'
+        ? 'Fechamento informado pelo vendedor; não representa pagamento verificado.'
+        : undefined,
+    );
+  }
+  async function runAI(isFollowup = false) {
+    if (
+      pending.current ||
+      terminal(lead) ||
+      lead.optOut ||
+      (!isFollowup && !simulation.trim())
+    )
+      return;
+    pending.current = true;
+    setBusy(true);
+    setAIError('');
+    setInterruptedReplyId(animateReplyId);
+    const question = isFollowup
+      ? 'Prepare a próxima retomada autorizada.'
+      : simulation.trim();
+    const key = lead.id + '|' + isFollowup + '|' + question;
+    const attempt =
+      lastAttempt.current?.key === key && lastAttempt.current.failed
+        ? lastAttempt.current
+        : { key, id: crypto.randomUUID(), failed: false };
+    lastAttempt.current = attempt;
+    try {
+      await workspace.flush();
+      const result = await askAI(
+        lead.id,
+        question,
+        attempt.id,
+        isFollowup ? 'followup' : 'reply',
+        attempt.failed,
+      );
+      setAnimateReplyId(attempt.id + '-reply');
+      await workspace.flush();
+      await workspace.reload();
+      lastAttempt.current = null;
+      if (result.data?.leads.find((l: Lead) => l.id === lead.id)?.needsHuman)
+        setSideTab('summary');
+    } catch (e) {
+      attempt.failed = true;
+      setAIError(e instanceof Error ? e.message : 'Falha ao consultar a IA.');
+      await workspace.reload().catch(() => {});
+    } finally {
+      pending.current = false;
+      setBusy(false);
+    }
+  }
+  const incoming = () => runAI(false);
+  const nextFollowup = () => runAI(true);
+  useEffect(() => {
+    const stream = messageEnd.current?.parentElement;
+    if (stream) stream.scrollTop = stream.scrollHeight;
+  }, [lead.id, lead.messages.length]);
+  useEffect(() => {
+    const context = (
+      document as Document & {
+        modelContext?: {
+          registerTool: (
+            tool: unknown,
+            options: { signal: AbortSignal },
+          ) => void | Promise<void>;
+        };
+      }
+    ).modelContext;
+    if (!context?.registerTool) return;
+    const lifecycle = new AbortController();
+    try {
+      Promise.resolve(
+        context.registerTool(
+          {
+            name: 'navigate_retoma',
+            description: 'Navega entre as áreas do Retoma.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                view: {
+                  type: 'string',
+                  enum: [
+                    'workspace',
+                    'pipeline',
+                    'results',
+                    'knowledge',
+                    'settings',
+                  ],
+                },
+              },
+              required: ['view'],
+              additionalProperties: false,
+            },
+            annotations: { readOnlyHint: false },
+            execute: (input: unknown) => {
+              const target = (input as { view?: unknown })?.view;
+              if (
+                typeof target !== 'string' ||
+                ![
+                  'workspace',
+                  'pipeline',
+                  'results',
+                  'knowledge',
+                  'settings',
+                ].includes(target)
+              )
+                throw new Error('Área inválida');
+              flushSync(() => setView(target));
+              return { view: target };
+            },
+          },
+          { signal: lifecycle.signal },
+        ),
+      ).catch(() => {});
+    } catch {}
+    return () => lifecycle.abort();
+  }, []);
+  const canFollow =
+    !business(config).paused &&
+    !lead.recoveryPaused &&
+    lead.ai &&
+    lead.status === 'Parado' &&
+    lead.consent &&
+    !lead.optOut &&
+    config.followups &&
+    lead.attempts < config.days.length;
+  const filtered = leads.filter(
+    (l) =>
+      (l.name + ' ' + l.company + ' ' + l.service)
+        .toLowerCase()
+        .includes(query.toLowerCase()) &&
+      (filter === 'Todos' ||
+        (filter === 'Precisa de você' ? l.needsHuman : l.status === filter)),
+  );
+  if (!workspace.ready)
+    return (
+      <div className="content-page">
+        <h1>Retoma</h1>
+        <p>{workspace.error || 'Carregando sua empresa…'}</p>
+      </div>
+    );
+  return (
+    <Toaster>
+      <div className="retoma-shell">
+        <Tabs
+          value={view}
+          onValueChange={(v) => setView(String(v))}
+          className="main-tabs"
+        >
+          <header className="brand-header">
+            <a
+              className="retoma-logo"
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                setView('workspace');
+              }}
+            >
+              <img src="/retoma-icon.png" alt="Símbolo Retoma" />
+              <span className="brand-name">retoma</span>
+              <span className="brand-edition">oportunidades</span>
+            </a>
+            <div className="company-switch">
+              <span className="company-initials">FV</span>
+              <div>
+                {config.company}
+                <small>Comunicação visual</small>
+              </div>
+            </div>
+            <div className="header-actions">
+              <span className="prototype-tag">
+                <span className="dot" />
+                WhatsApp e IA conectados
+              </span>
+              <button
+                className="notification-button"
+                onClick={() => setNotifications(true)}
+                aria-label={`Notificações: ${alerts.length} conversas precisam de você`}
+              >
+                <Bell size={20} />
+                {alerts.length > 0 && <b>{alerts.length}</b>}
+              </button>
+              <span className="profile-avatar">RV</span>
+            </div>
+          </header>
+          <div className="nav-row">
+            <TabsList className="main-nav">
+              <TabsTrigger value="workspace">
+                <MessageCircle size={18} />
+                Atendimento
+              </TabsTrigger>
+              <TabsTrigger value="pipeline">
+                <Layers3 size={18} />
+                Recuperações
+              </TabsTrigger>
+              <TabsTrigger value="results">
+                <TrendingUp size={18} />
+                Resultados
+              </TabsTrigger>
+              <TabsTrigger value="knowledge">
+                <BookOpen size={18} />
+                Assistente
+              </TabsTrigger>
+              <TabsTrigger value="settings">
+                <Settings2 size={18} />
+                Configurações
+              </TabsTrigger>
+            </TabsList>
+            <span className="connection-note">
+              <ShieldCheck size={14} />
+              WhatsApp conectado pelo Retoma
+            </span>
+          </div>
+          <div
+            className={'sync-banner ' + (workspace.error ? 'error' : '')}
+            role="status"
+          >
+            {workspace.error ||
+              (workspace.saving
+                ? 'Salvando alterações…'
+                : 'Atendimento sincronizado.')}
+            {business(config).paused && (
+              <strong>Automação em pausa geral</strong>
+            )}
+          </div>
+          <div className={'simulation-banner ' + (real ? 'is-live' : '')}>
+            <FlaskConical size={15} />
+            <span>
+              {real
+                ? 'Conversa real recebida do WhatsApp. A IA responde até o vendedor assumir.'
+                : 'Dados iniciais de exemplo. Conecte o WhatsApp para receber conversas reais.'}
+            </span>
+          </div>
 
- <TabsContent value="workspace" className="workspace-page"><Heading eyebrow="ATENDIMENTO INTELIGENTE" title="Central de atendimento" subtitle="Converse, acompanhe a IA e resolva o que precisa de você."><button className="btn outline" onClick={()=>setNewQuote(true)}><Plus size={17}/>Adicionar acompanhamento</button></Heading>
- <div className="pulse-strip"><div><span className="pulse-icon green"><Sparkles size={19}/></span><b>{activeAI.length.toString().padStart(2,'0')}</b><span>com a IA</span></div><button onClick={()=>{setFilter('Parado');setView('pipeline')}}><span className="pulse-icon amber"><Clock3 size={19}/></span><b>{stopped.length.toString().padStart(2,'0')}</b><span>conversas paradas</span><ChevronRight size={16}/></button><button onClick={()=>setNotifications(true)}><span className="pulse-icon purple"><Headphones size={19}/></span><b>{alerts.length.toString().padStart(2,'0')}</b><span>precisa{alerts.length===1?'':'m'} de você</span><ChevronRight size={16}/></button><div><span className="pulse-icon green"><CircleDollarSign size={19}/></span><b>{money(sold.reduce((s,l)=>s+(l.valueConfirmed?(l.value||0):0),0))}</b><span>em vendidos</span></div></div>
- <div className="conversation-workspace"><aside className="conversation-list"><div className="list-heading"><h2>Conversas <span>{leads.length}</span></h2><span className="micro-label">ORÇAMENTOS</span></div><label className="search-box"><Search size={17}/><input aria-label="Buscar conversa" placeholder="Buscar cliente…" value={search} onChange={e=>setSearch(e.target.value)}/></label><div className="client-list">{leads.filter(l=>(l.name+' '+l.company).toLowerCase().includes(search.toLowerCase())).map(l=><button key={l.id} className={'client '+(l.id===lead.id?'selected':'')} onClick={()=>select(l)}><Avatar lead={l}/><div className="client-content"><div><b>{l.name}</b>{l.needsHuman?<span className="attention-dot"/>:l.ai?<Sparkles size={14}/>:null}</div><span>{l.company}</span><p>{l.messages.at(-1)?.text}</p><div className="client-meta"><StatusPill status={l.status}/><small>{l.needsHuman?'Precisa de você':l.ai?'IA ativa':'Manual'}</small></div></div></button>)}{!leads.some(l=>(l.name+' '+l.company).toLowerCase().includes(search.toLowerCase()))&&<p className="empty-copy">Nenhuma conversa encontrada.</p>}</div><div className="list-bottom"><ShieldCheck size={18}/><span>Só acompanha quem<br/>você autorizar.</span></div></aside>
- <section className="chat-surface"><header className="conversation-header"><Avatar lead={lead}/><div className="conversation-person"><h2>{lead.name}</h2><p>{lead.company||'Contato sem empresa informada'} <span>•</span> {real?'WhatsApp Web sincronizado':'Demonstração'}</p></div><div className={'owner-pill '+(lead.ai?'is-ai':'')} >{lead.ai?<Sparkles size={14}/>:<UserRound size={14}/>}<span>{lead.ai?`${config.assistant} · IA`:'Vendedor'}</span></div></header>
- {lead.needsHuman?<button className="handoff-banner" onClick={()=>setSideTab('summary')}><Headphones size={19}/><div><b>Essa conversa precisa de você</b><span>{lead.reason} · {lead.ai?'IA disponível até você assumir':'Atendimento manual'}</span></div><ChevronRight size={19}/></button>:<div className="context-ribbon"><FileText size={15}/><span>{lead.service}</span><strong>{money(lead.value)}</strong><span className="quote-ref">{lead.reference?'#'+lead.reference:'Sem referência'}</span></div>}
- <div className="message-stream"><div className="day-label"><span/>{real?'CONVERSA SINCRONIZADA':'CONVERSA DE DEMONSTRAÇÃO'}<span/></div>{lead.messages.map((m,i)=><div key={i} className={`message message-${m.role} ${m.kind==='quote'?'message-quote':''}`}>{m.role==='ia'&&<div className="ai-message-label"><Sparkles size={13}/>{config.assistant} · Assistente IA <span>{m.delivery==='sent'?'Enviada':m.provider?'IA':'Exemplo'}</span></div>}{m.kind==='quote'&&<div className="quote-document"><span><FileText size={24}/></span><div><b>Proposta comercial</b><small>Informações compartilhadas pelo vendedor</small></div></div>}{m.role==='ia'?<MessageBody text={m.text} animate={m.id===animateReplyId} paused={!lead.ai||business(config).paused||m.id===interruptedReplyId}/>:<p>{m.text}</p>}<div className="message-time">{m.role==='cliente'?'Cliente':m.role==='ia'?(m.provider||'IA · exemplo'):'Vendedor'} <span>·</span> {m.delivery==='pending'?'aguardando WhatsApp Web':i===lead.messages.length-1?'última mensagem':'histórico'}{m.role!=='cliente'&&m.delivery!=='pending'&&<CheckCheck size={15}/>}</div></div>)}{lead.ai&&<div className="waiting-note"><span className="dot"/>{real?'Extensão monitorando novas mensagens':'IA pronta para a próxima retomada'}</div>}<div ref={messageEnd}/></div>
- <div className="composer-area">{lead.ai?<div className="composer-lock"><Sparkles size={17}/><span>{business(config).paused?'Automação em pausa geral.':lead.needsHuman?'Vendedor solicitado. A IA continua respondendo até você assumir.':real?'A extensão responde pelo WhatsApp Web.':'A IA está habilitada nesta conversa.'}</span><button onClick={handover}>Assumir <ArrowUpRight size={14}/></button></div>:<form className="message-composer" onSubmit={e=>{e.preventDefault();if(real){void sendRealMessage();return;}if(!draft.trim()||lead.optOut||terminal(lead))return;update(lead.id,l=>({...l,status:'Conversando',needsHuman:false,messages:[...l.messages,{role:'vendedor',text:draft.trim()}],history:[...l.history,'Vendedor respondeu na simulação.']}));setDraft('');}}><input aria-label="Mensagem do vendedor" placeholder={terminal(lead)?'Conversa finalizada':real&&lead.pendingExtensionReply?.sender==='vendedor'?'Aguardando envio pelo WhatsApp Web…':real?'Escreva para enviar pelo WhatsApp Web…':'Escreva como vendedor…'} value={draft} disabled={sendingReal||!!lead.pendingExtensionReply||lead.optOut||terminal(lead)} onChange={e=>setDraft(e.target.value)}/><button className="send-button" disabled={sendingReal||!!lead.pendingExtensionReply||!draft.trim()||lead.optOut||terminal(lead)} type="submit" aria-label={real?'Enviar pelo WhatsApp Web':'Enviar mensagem simulada'}><Send size={18}/></button></form>}<div className="composer-disclaimer"><ShieldCheck size={12}/>{real?'A extensão envia com o Chrome e o WhatsApp Web abertos.':'Ambiente demonstrativo, sem envio real.'}</div>{real&&aiError&&<p role="alert" className="inline-tip amber">{aiError}</p>}</div>
- {!real&&<details className="scenario-panel"><summary><FlaskConical size={15}/>Experimentar uma resposta do cliente<ChevronRight size={15}/></summary><div><label className="field">Mensagem do cliente<textarea value={simulation} maxLength={2000} rows={3} onChange={e=>setSimulation(e.target.value)} placeholder="Digite uma mensagem fictícia do cliente…"/></label><button className="btn outline full" disabled={busy||!simulation.trim()||terminal(lead)||lead.optOut} onClick={incoming}><Play size={15}/>{busy?'Consultando IA…':'Testar mensagem do cliente'}</button>{aiError&&<p role="alert" className="inline-tip amber">{aiError} A mensagem recebida permanece registrada. Nenhum envio real foi feito.</p>}</div></details>}</section>
+          <TabsContent value="workspace" className="workspace-page">
+            <Heading
+              eyebrow="ATENDIMENTO INTELIGENTE"
+              title="Central de atendimento"
+              subtitle="Converse, acompanhe a IA e resolva o que precisa de você."
+            >
+              <button className="btn outline" onClick={() => setNewQuote(true)}>
+                <Plus size={17} />
+                Adicionar acompanhamento
+              </button>
+            </Heading>
+            <div className="pulse-strip">
+              <div>
+                <span className="pulse-icon green">
+                  <Sparkles size={19} />
+                </span>
+                <b>{activeAI.length.toString().padStart(2, '0')}</b>
+                <span>com a IA</span>
+              </div>
+              <button
+                onClick={() => {
+                  setFilter('Parado');
+                  setView('pipeline');
+                }}
+              >
+                <span className="pulse-icon amber">
+                  <Clock3 size={19} />
+                </span>
+                <b>{stopped.length.toString().padStart(2, '0')}</b>
+                <span>conversas paradas</span>
+                <ChevronRight size={16} />
+              </button>
+              <button onClick={() => setNotifications(true)}>
+                <span className="pulse-icon purple">
+                  <Headphones size={19} />
+                </span>
+                <b>{alerts.length.toString().padStart(2, '0')}</b>
+                <span>precisa{alerts.length === 1 ? '' : 'm'} de você</span>
+                <ChevronRight size={16} />
+              </button>
+              <div>
+                <span className="pulse-icon green">
+                  <CircleDollarSign size={19} />
+                </span>
+                <b>
+                  {money(
+                    sold.reduce(
+                      (s, l) => s + (l.valueConfirmed ? l.value || 0 : 0),
+                      0,
+                    ),
+                  )}
+                </b>
+                <span>em vendidos</span>
+              </div>
+            </div>
+            <div className="conversation-workspace">
+              <aside className="conversation-list">
+                <div className="list-heading">
+                  <h2>
+                    Conversas <span>{leads.length}</span>
+                  </h2>
+                  <span className="micro-label">ORÇAMENTOS</span>
+                </div>
+                <label className="search-box">
+                  <Search size={17} />
+                  <input
+                    aria-label="Buscar conversa"
+                    placeholder="Buscar cliente…"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </label>
+                <div className="client-list">
+                  {leads
+                    .filter((l) =>
+                      (l.name + ' ' + l.company)
+                        .toLowerCase()
+                        .includes(search.toLowerCase()),
+                    )
+                    .map((l) => (
+                      <button
+                        key={l.id}
+                        className={
+                          'client ' + (l.id === lead.id ? 'selected' : '')
+                        }
+                        onClick={() => select(l)}
+                      >
+                        <Avatar lead={l} />
+                        <div className="client-content">
+                          <div>
+                            <b>{l.name}</b>
+                            {l.needsHuman ? (
+                              <span className="attention-dot" />
+                            ) : l.ai ? (
+                              <Sparkles size={14} />
+                            ) : null}
+                          </div>
+                          <span>{l.company}</span>
+                          <p>{l.messages.at(-1)?.text}</p>
+                          <div className="client-meta">
+                            <StatusPill status={l.status} />
+                            <small>
+                              {l.needsHuman
+                                ? 'Precisa de você'
+                                : l.ai
+                                  ? 'IA ativa'
+                                  : 'Manual'}
+                            </small>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  {!leads.some((l) =>
+                    (l.name + ' ' + l.company)
+                      .toLowerCase()
+                      .includes(search.toLowerCase()),
+                  ) && (
+                    <p className="empty-copy">Nenhuma conversa encontrada.</p>
+                  )}
+                </div>
+                <div className="list-bottom">
+                  <ShieldCheck size={18} />
+                  <span>
+                    Só acompanha quem
+                    <br />
+                    você autorizar.
+                  </span>
+                </div>
+              </aside>
+              <section className="chat-surface">
+                <header className="conversation-header">
+                  <Avatar lead={lead} />
+                  <div className="conversation-person">
+                    <h2>{lead.name}</h2>
+                    <p>
+                      {lead.company || 'Contato sem empresa informada'}{' '}
+                      <span>•</span>{' '}
+                      {real ? 'WhatsApp sincronizado' : 'Exemplo inicial'}
+                    </p>
+                  </div>
+                  <div className={'owner-pill ' + (lead.ai ? 'is-ai' : '')}>
+                    {lead.ai ? <Sparkles size={14} /> : <UserRound size={14} />}
+                    <span>
+                      {lead.ai ? `${config.assistant} · IA` : 'Vendedor'}
+                    </span>
+                  </div>
+                </header>
+                {lead.needsHuman ? (
+                  <button
+                    className="handoff-banner"
+                    onClick={() => setSideTab('summary')}
+                  >
+                    <Headphones size={19} />
+                    <div>
+                      <b>Essa conversa precisa de você</b>
+                      <span>
+                        {lead.reason} ·{' '}
+                        {lead.ai
+                          ? 'IA disponível até você assumir'
+                          : 'Atendimento manual'}
+                      </span>
+                    </div>
+                    <ChevronRight size={19} />
+                  </button>
+                ) : (
+                  <div className="context-ribbon">
+                    <FileText size={15} />
+                    <span>{lead.service}</span>
+                    <strong>{money(lead.value)}</strong>
+                    <span className="quote-ref">
+                      {lead.reference ? '#' + lead.reference : 'Sem referência'}
+                    </span>
+                  </div>
+                )}
+                <div className="message-stream">
+                  <div className="day-label">
+                    <span />
+                    {real ? 'CONVERSA DO WHATSAPP' : 'EXEMPLO INICIAL'}
+                    <span />
+                  </div>
+                  {lead.messages.map((m, i) => (
+                    <div
+                      key={i}
+                      className={`message message-${m.role} ${m.kind === 'quote' ? 'message-quote' : ''}`}
+                    >
+                      {m.role === 'ia' && (
+                        <div className="ai-message-label">
+                          <Sparkles size={13} />
+                          {config.assistant} · Assistente IA{' '}
+                          <span>
+                            {m.delivery === 'sent'
+                              ? 'Enviada'
+                              : m.provider
+                                ? 'IA'
+                                : 'Exemplo'}
+                          </span>
+                        </div>
+                      )}
+                      {m.kind === 'quote' && (
+                        <div className="quote-document">
+                          <span>
+                            <FileText size={24} />
+                          </span>
+                          <div>
+                            <b>Proposta comercial</b>
+                            <small>
+                              Informações compartilhadas pelo vendedor
+                            </small>
+                          </div>
+                        </div>
+                      )}
+                      {m.role === 'ia' ? (
+                        <MessageBody
+                          text={m.text}
+                          animate={m.id === animateReplyId}
+                          paused={
+                            !lead.ai ||
+                            business(config).paused ||
+                            m.id === interruptedReplyId
+                          }
+                        />
+                      ) : (
+                        <p>{m.text}</p>
+                      )}
+                      <div className="message-time">
+                        {m.role === 'cliente'
+                          ? 'Cliente'
+                          : m.role === 'ia'
+                            ? m.provider || 'IA · exemplo'
+                            : 'Vendedor'}{' '}
+                        <span>·</span>{' '}
+                        {m.delivery === 'pending'
+                          ? 'enviando ao WhatsApp'
+                          : i === lead.messages.length - 1
+                            ? 'última mensagem'
+                            : 'histórico'}
+                        {m.role !== 'cliente' && m.delivery !== 'pending' && (
+                          <CheckCheck size={15} />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {lead.ai && (
+                    <div className="waiting-note">
+                      <span className="dot" />
+                      {real
+                        ? 'IA acompanhando novas mensagens'
+                        : 'IA pronta para a próxima retomada'}
+                    </div>
+                  )}
+                  <div ref={messageEnd} />
+                </div>
+                <div className="composer-area">
+                  {lead.ai ? (
+                    <div className="composer-lock">
+                      <Sparkles size={17} />
+                      <span>
+                        {business(config).paused
+                          ? 'Automação em pausa geral.'
+                          : lead.needsHuman
+                            ? 'Vendedor solicitado. A IA continua respondendo até você assumir.'
+                            : real
+                              ? 'A IA está respondendo por esta conexão.'
+                              : 'A IA está habilitada nesta conversa.'}
+                      </span>
+                      <button onClick={handover}>
+                        Assumir <ArrowUpRight size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <form
+                      className="message-composer"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        if (real) {
+                          void sendRealMessage();
+                          return;
+                        }
+                        if (!draft.trim() || lead.optOut || terminal(lead))
+                          return;
+                        update(lead.id, (l) => ({
+                          ...l,
+                          status: 'Conversando',
+                          needsHuman: false,
+                          messages: [
+                            ...l.messages,
+                            { role: 'vendedor', text: draft.trim() },
+                          ],
+                          history: [
+                            ...l.history,
+                            'Vendedor respondeu no exemplo inicial.',
+                          ],
+                        }));
+                        setDraft('');
+                      }}
+                    >
+                      <input
+                        aria-label="Mensagem do vendedor"
+                        placeholder={
+                          terminal(lead)
+                            ? 'Conversa finalizada'
+                            : real
+                              ? 'Escreva para enviar ao WhatsApp…'
+                              : 'Escreva como vendedor…'
+                        }
+                        value={draft}
+                        disabled={
+                          sendingReal ||
+                          !!lead.pendingExtensionReply ||
+                          lead.optOut ||
+                          terminal(lead)
+                        }
+                        onChange={(e) => setDraft(e.target.value)}
+                      />
+                      <button
+                        className="send-button"
+                        disabled={
+                          sendingReal ||
+                          !!lead.pendingExtensionReply ||
+                          !draft.trim() ||
+                          lead.optOut ||
+                          terminal(lead)
+                        }
+                        type="submit"
+                        aria-label={
+                          real
+                            ? 'Enviar pelo WhatsApp'
+                            : 'Enviar mensagem de exemplo'
+                        }
+                      >
+                        <Send size={18} />
+                      </button>
+                    </form>
+                  )}
+                  <div className="composer-disclaimer">
+                    <ShieldCheck size={12} />
+                    {real
+                      ? 'Mensagem enviada pela conexão do Retoma.'
+                      : 'Exemplo local, sem envio real.'}
+                  </div>
+                  {real && aiError && (
+                    <p role="alert" className="inline-tip amber">
+                      {aiError}
+                    </p>
+                  )}
+                </div>
+                {!real && (
+                  <details className="scenario-panel">
+                    <summary>
+                      <FlaskConical size={15} />
+                      Experimentar uma resposta do cliente
+                      <ChevronRight size={15} />
+                    </summary>
+                    <div>
+                      <label className="field">
+                        Mensagem do cliente
+                        <textarea
+                          value={simulation}
+                          maxLength={2000}
+                          rows={3}
+                          onChange={(e) => setSimulation(e.target.value)}
+                          placeholder="Digite uma mensagem fictícia do cliente…"
+                        />
+                      </label>
+                      <button
+                        className="btn outline full"
+                        disabled={
+                          busy ||
+                          !simulation.trim() ||
+                          terminal(lead) ||
+                          lead.optOut
+                        }
+                        onClick={incoming}
+                      >
+                        <Play size={15} />
+                        {busy
+                          ? 'Consultando IA…'
+                          : 'Testar mensagem do cliente'}
+                      </button>
+                      {aiError && (
+                        <p role="alert" className="inline-tip amber">
+                          {aiError} A mensagem recebida permanece registrada.
+                          Nenhum envio real foi feito.
+                        </p>
+                      )}
+                    </div>
+                  </details>
+                )}
+              </section>
 
- <aside className="copilot-panel"><div className="copilot-header"><span className="copilot-symbol"><Sparkles size={23}/></span><div><h2>{config.assistant}, sua assistente</h2><p>Sua copiloto nesta conversa</p></div></div><Tabs value={sideTab} onValueChange={v=>setSideTab(String(v))} className="copilot-tabs"><TabsList className="panel-tabs"><TabsTrigger value="follow"><Activity size={16}/>Controle da IA</TabsTrigger><TabsTrigger value="summary"><MessageSquareText size={16}/>Resumo {lead.needsHuman&&<span className="tiny-dot"/>}</TabsTrigger></TabsList>
- <TabsContent value="follow" className="copilot-body"><div className="status-control"><span>Status da conversa</span><NativeSelect aria-label="Status da conversa" value={lead.status} onChange={e=>onStatus(e.target.value as Status)}>{statuses.map(s=><NativeSelectOption key={s}>{s}</NativeSelectOption>)}</NativeSelect></div><details className="quote-card"><summary><FileText size={16}/><span>Dados do acompanhamento</span><ChevronRight size={16}/></summary><div className="quote-card-content"><div className="micro-label"><FileText size={14}/>CONTEXTO {lead.reference?'#'+lead.reference:'Sem referência'}</div><h3>{lead.service}</h3><strong>{money(lead.value)}</strong><div><CalendarDays size={14}/>Enviado em {lead.date.split('-').reverse().join('/')}</div></div></details>
- <div className={'activation-card '+(lead.ai?'activated':'')}><div className="activation-title"><span className="round-icon">{lead.ai?<Activity size={22}/>:<Sparkles size={22}/>}</span><span className={'pill '+(lead.ai?'green':'neutral')}>{lead.ai?'Ativa nesta conversa':lead.optOut?'Não contatar':terminal(lead)?'Finalizada':'Aguardando ativação'}</span></div><h3>{lead.ai?'IA acompanhando':lead.optOut?'O cliente pediu para parar.':terminal(lead)?'Acompanhamento concluído.':'Ative a IA nesta conversa'}</h3><p>{lead.ai?'Responde às dúvidas. Você assume quando precisar.':lead.optOut?'Novas retomadas estão bloqueadas para respeitar a recusa.':terminal(lead)?'A IA não fará novas tentativas nesta conversa.':real?'Abra esta conversa no WhatsApp Web e clique em Acompanhar com IA.':'Escolha esta conversa, revise o contexto e autorize a continuidade do atendimento.'}</p>{lead.ai?<button className="btn outline full" onClick={()=>{update(lead.id,l=>({...l,ai:false,history:[...l.history,'Vendedor pausou a IA.']}));notify('IA pausada nesta conversa')}}><Pause size={16}/>Pausar IA</button>:real?<a className="btn primary full" href="https://web.whatsapp.com" target="_blank"><MessageCircle size={17}/>Ativar no WhatsApp Web</a>:<button className="btn primary full" disabled={terminal(lead)||lead.optOut} onClick={()=>{setConsent(lead.consent);setActivation(true)}}><Sparkles size={17}/>Ativar IA nesta conversa</button>}<small><ShieldCheck size={13}/>{real?'Sincronizada pela extensão.':'Apenas a conversa selecionada.'}</small></div>
- {lead.ai&&<div className="followup-sequence"><div className="subheading"><b>Próximas retomadas</b><span>{lead.attempts}/{config.days.length}</span></div><div className="sequence-steps">{config.days.map((day,i)=><div className={i<lead.attempts?'done':i===lead.attempts?'next':''} key={i}><span>{i<lead.attempts?<Check size={13}/>:i+1}</span><small>Dia {day}</small></div>)}</div><p>{lead.status==='Conversando'?'Sequência interrompida: cliente em conversa.':!config.followups?'Retomadas desativadas nas configurações.':lead.attempts>=config.days.length?'Limite de tentativas atingido.':`Próximo contato: ${lead.due}`}</p><button className="btn outline full" disabled={busy||!canFollow} onClick={nextFollowup}><Play size={15}/>Simular próxima retomada</button><button className="quiet-btn" disabled={busy||!canFollow} onClick={()=>{update(lead.id,l=>({...l,due:'Amanhã',history:[...l.history,'Próximo contato adiado para amanhã.']}));notify('Retomada adiada para amanhã')}}><Clock3 size={14}/>Adiar lembrete</button></div>}
- <details className="automation-options"><summary><Settings2 size={16}/>Controles de pausa<ChevronRight size={16}/></summary><button className="btn outline full" disabled={terminal(lead)||lead.optOut} onClick={()=>update(lead.id,l=>({...l,recoveryPaused:!l.recoveryPaused}))}><Pause size={15}/>{lead.recoveryPaused?'Retomar sequência de recuperação':'Pausar somente retomadas'}</button><p className="status-notice">Pausar retomadas não interrompe respostas. Para atendimento manual, use Assumir ou Pausar IA.</p></details>{lead.status==='Vendido'&&lead.value!==null&&<label className="consent-line"><Checkbox checked={!!lead.valueConfirmed} onCheckedChange={v=>update(lead.id,l=>({...l,valueConfirmed:v}))}/>Confirmo o valor final desta venda: {money(lead.value)}</label>}<button className="summary-shortcut" onClick={()=>setSideTab('summary')}><span><MessageSquareText size={19}/><span><b>Antes de entrar, entenda.</b><small>Interesse, objeção e próximo passo.</small></span></span><ArrowUpRight size={17}/></button><button className="knowledge-shortcut" onClick={()=>setView('knowledge')}><BookOpen size={15}/>Configurar o assistente<ArrowRight size={15}/></button></TabsContent>
- <TabsContent value="summary" className="copilot-body"><div className="summary-title"><span className="mini-ai"><Sparkles size={15}/></span><div><h3>O essencial, sem reler tudo.</h3><p>Resumo da conversa. Revise antes de assumir.</p></div></div>{lead.aiSummary&&<div className="summary-item summary-generated"><small><Sparkles size={14}/> RESUMO DA IA</small><p>{lead.aiSummary}</p><small>Gerado na última resposta; consulte o histórico se houve mudanças.</small></div>}<div className="summary-item summary-interest"><small><FileText size={14}/> INTERESSE DO CLIENTE</small><p>{summary.interest}</p></div><div className="summary-item"><small>ÚLTIMA MENSAGEM DO CLIENTE</small><blockquote>“{summary.last}”</blockquote></div><div className={'summary-item '+(lead.needsHuman?'summary-attention':'')}><small>{lead.needsHuman?'POR QUE VOCÊ FOI CHAMADO':'SITUAÇÃO ATUAL'}</small><p>{summary.reason}</p></div><div className="summary-item summary-next"><small><ArrowUpRight size={14}/> PRÓXIMO PASSO</small><p>{summary.next}</p></div><details className="context-editor"><summary><Settings2 size={16}/>Editar contexto e pendências<ChevronRight size={16}/></summary><form className="follow-context" key={lead.id+'-'+lead.notes} onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);update(lead.id,l=>({...l,notes:String(f.get('notes')),productId:String(f.get('product'))||null,due:l.status==='Parado'?String(f.get('due')):l.due,reason:String(f.get('reason'))}));}}><label className="field">Produto vinculado<NativeSelect name="product" defaultValue={lead.productId||''}><NativeSelectOption value="">Não identificado</NativeSelectOption>{allCatalogue(config).map(([id,name])=><NativeSelectOption key={id} value={id}>{name}</NativeSelectOption>)}</NativeSelect></label><label className="field">Motivo e contexto<textarea name="notes" rows={3} defaultValue={lead.notes}/></label><label className="field">Próxima retomada (preferência de teste)<input name="due" disabled={lead.status!=='Parado'} defaultValue={lead.due}/></label><label className="field">Pendências para o vendedor<textarea name="reason" defaultValue={lead.reason} rows={2}/></label><button className="btn outline">Salvar contexto</button></form></details>{!terminal(lead)&&<button className="btn primary full" onClick={handover}><Headphones size={17}/>{lead.needsHuman||lead.ai?'Assumir com esse contexto':'Estou ciente, continuar atendimento'}</button>}<section className="summary-item interests-card"><small><Layers3 size={14}/> PRODUTOS MENCIONADOS</small><p>Registro para revisão, sem campanha automática.</p>{lead.optOut?<p>Cliente recusou contato. Não usar para retomadas.</p>:lead.interests?.length?<ul>{lead.interests.slice(-8).map((item,i)=><li key={item.messageId+item.productId+i}><b>{allCatalogue(config).find(p=>p[0]===item.productId)?.[1]||'Produto'}</b><span className="pill neutral">Menção a revisar</span><blockquote>{item.evidence}</blockquote></li>)}</ul>:<p>Novas menções serão registradas nas conversas autorizadas. Ausência de menção não significa falta de interesse.</p>}</section><details className="history"><summary><Clock3 size={15}/>Histórico do acompanhamento</summary><ol>{lead.history.map((h,i)=><li key={i}>{h}</li>)}</ol></details></TabsContent></Tabs></aside></div>
- <div className="workspace-footer"><span><ShieldCheck size={14}/>Autonomia com limites. O vendedor sempre pode assumir.</span><button onClick={()=>setView('knowledge')}>Ver regras do assistente <ArrowUpRight size={14}/></button></div></TabsContent>
+              <aside className="copilot-panel">
+                <div className="copilot-header">
+                  <span className="copilot-symbol">
+                    <Sparkles size={23} />
+                  </span>
+                  <div>
+                    <h2>{config.assistant}, sua assistente</h2>
+                    <p>Sua copiloto nesta conversa</p>
+                  </div>
+                </div>
+                <Tabs
+                  value={sideTab}
+                  onValueChange={(v) => setSideTab(String(v))}
+                  className="copilot-tabs"
+                >
+                  <TabsList className="panel-tabs">
+                    <TabsTrigger value="follow">
+                      <Activity size={16} />
+                      Controle da IA
+                    </TabsTrigger>
+                    <TabsTrigger value="summary">
+                      <MessageSquareText size={16} />
+                      Resumo {lead.needsHuman && <span className="tiny-dot" />}
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="follow" className="copilot-body">
+                    <div className="status-control">
+                      <span>Status da conversa</span>
+                      <NativeSelect
+                        aria-label="Status da conversa"
+                        value={lead.status}
+                        onChange={(e) => onStatus(e.target.value as Status)}
+                      >
+                        {statuses.map((s) => (
+                          <NativeSelectOption key={s}>{s}</NativeSelectOption>
+                        ))}
+                      </NativeSelect>
+                    </div>
+                    <details className="quote-card">
+                      <summary>
+                        <FileText size={16} />
+                        <span>Dados do acompanhamento</span>
+                        <ChevronRight size={16} />
+                      </summary>
+                      <div className="quote-card-content">
+                        <div className="micro-label">
+                          <FileText size={14} />
+                          CONTEXTO{' '}
+                          {lead.reference
+                            ? '#' + lead.reference
+                            : 'Sem referência'}
+                        </div>
+                        <h3>{lead.service}</h3>
+                        <strong>{money(lead.value)}</strong>
+                        <div>
+                          <CalendarDays size={14} />
+                          Enviado em {lead.date.split('-').reverse().join('/')}
+                        </div>
+                      </div>
+                    </details>
+                    <div
+                      className={
+                        'activation-card ' + (lead.ai ? 'activated' : '')
+                      }
+                    >
+                      <div className="activation-title">
+                        <span className="round-icon">
+                          {lead.ai ? (
+                            <Activity size={22} />
+                          ) : (
+                            <Sparkles size={22} />
+                          )}
+                        </span>
+                        <span
+                          className={'pill ' + (lead.ai ? 'green' : 'neutral')}
+                        >
+                          {lead.ai
+                            ? 'Ativa nesta conversa'
+                            : lead.optOut
+                              ? 'Não contatar'
+                              : terminal(lead)
+                                ? 'Finalizada'
+                                : 'Aguardando ativação'}
+                        </span>
+                      </div>
+                      <h3>
+                        {lead.ai
+                          ? 'IA acompanhando'
+                          : lead.optOut
+                            ? 'O cliente pediu para parar.'
+                            : terminal(lead)
+                              ? 'Acompanhamento concluído.'
+                              : 'Ative a IA nesta conversa'}
+                      </h3>
+                      <p>
+                        {lead.ai
+                          ? 'Responde às dúvidas. Você assume quando precisar.'
+                          : lead.optOut
+                            ? 'Novas retomadas estão bloqueadas para respeitar a recusa.'
+                            : terminal(lead)
+                              ? 'A IA não fará novas tentativas nesta conversa.'
+                              : 'Revise o contexto e autorize a continuidade do atendimento.'}
+                      </p>
+                      {lead.ai ? (
+                        <button
+                          className="btn outline full"
+                          onClick={() => {
+                            update(lead.id, (l) => ({
+                              ...l,
+                              ai: false,
+                              history: [...l.history, 'Vendedor pausou a IA.'],
+                            }));
+                            notify('IA pausada nesta conversa');
+                          }}
+                        >
+                          <Pause size={16} />
+                          Pausar IA
+                        </button>
+                      ) : (
+                        <button
+                          className="btn primary full"
+                          disabled={terminal(lead) || lead.optOut}
+                          onClick={() => {
+                            setConsent(lead.consent);
+                            setActivation(true);
+                          }}
+                        >
+                          <Sparkles size={17} />
+                          Ativar IA nesta conversa
+                        </button>
+                      )}
+                      <small>
+                        <ShieldCheck size={13} />
+                        {real
+                          ? 'Conversa conectada ao WhatsApp.'
+                          : 'Apenas a conversa selecionada.'}
+                      </small>
+                    </div>
+                    {lead.ai && (
+                      <div className="followup-sequence">
+                        <div className="subheading">
+                          <b>Próximas retomadas</b>
+                          <span>
+                            {lead.attempts}/{config.days.length}
+                          </span>
+                        </div>
+                        <div className="sequence-steps">
+                          {config.days.map((day, i) => (
+                            <div
+                              className={
+                                i < lead.attempts
+                                  ? 'done'
+                                  : i === lead.attempts
+                                    ? 'next'
+                                    : ''
+                              }
+                              key={i}
+                            >
+                              <span>
+                                {i < lead.attempts ? (
+                                  <Check size={13} />
+                                ) : (
+                                  i + 1
+                                )}
+                              </span>
+                              <small>Dia {day}</small>
+                            </div>
+                          ))}
+                        </div>
+                        <p>
+                          {lead.status === 'Conversando'
+                            ? 'Sequência interrompida: cliente em conversa.'
+                            : !config.followups
+                              ? 'Retomadas desativadas nas configurações.'
+                              : lead.attempts >= config.days.length
+                                ? 'Limite de tentativas atingido.'
+                                : `Próximo contato: ${lead.due}`}
+                        </p>
+                        <button
+                          className="btn outline full"
+                          disabled={busy || !canFollow}
+                          onClick={nextFollowup}
+                        >
+                          <Play size={15} />
+                          Simular próxima retomada
+                        </button>
+                        <button
+                          className="quiet-btn"
+                          disabled={busy || !canFollow}
+                          onClick={() => {
+                            update(lead.id, (l) => ({
+                              ...l,
+                              due: 'Amanhã',
+                              history: [
+                                ...l.history,
+                                'Próximo contato adiado para amanhã.',
+                              ],
+                            }));
+                            notify('Retomada adiada para amanhã');
+                          }}
+                        >
+                          <Clock3 size={14} />
+                          Adiar lembrete
+                        </button>
+                      </div>
+                    )}
+                    <details className="automation-options">
+                      <summary>
+                        <Settings2 size={16} />
+                        Controles de pausa
+                        <ChevronRight size={16} />
+                      </summary>
+                      <button
+                        className="btn outline full"
+                        disabled={terminal(lead) || lead.optOut}
+                        onClick={() =>
+                          update(lead.id, (l) => ({
+                            ...l,
+                            recoveryPaused: !l.recoveryPaused,
+                          }))
+                        }
+                      >
+                        <Pause size={15} />
+                        {lead.recoveryPaused
+                          ? 'Retomar sequência de recuperação'
+                          : 'Pausar somente retomadas'}
+                      </button>
+                      <p className="status-notice">
+                        Pausar retomadas não interrompe respostas. Para
+                        atendimento manual, use Assumir ou Pausar IA.
+                      </p>
+                    </details>
+                    {lead.status === 'Vendido' && lead.value !== null && (
+                      <label className="consent-line">
+                        <Checkbox
+                          checked={!!lead.valueConfirmed}
+                          onCheckedChange={(v) =>
+                            update(lead.id, (l) => ({
+                              ...l,
+                              valueConfirmed: v,
+                            }))
+                          }
+                        />
+                        Confirmo o valor final desta venda: {money(lead.value)}
+                      </label>
+                    )}
+                    <button
+                      className="summary-shortcut"
+                      onClick={() => setSideTab('summary')}
+                    >
+                      <span>
+                        <MessageSquareText size={19} />
+                        <span>
+                          <b>Antes de entrar, entenda.</b>
+                          <small>Interesse, objeção e próximo passo.</small>
+                        </span>
+                      </span>
+                      <ArrowUpRight size={17} />
+                    </button>
+                    <button
+                      className="knowledge-shortcut"
+                      onClick={() => setView('knowledge')}
+                    >
+                      <BookOpen size={15} />
+                      Configurar o assistente
+                      <ArrowRight size={15} />
+                    </button>
+                  </TabsContent>
+                  <TabsContent value="summary" className="copilot-body">
+                    <div className="summary-title">
+                      <span className="mini-ai">
+                        <Sparkles size={15} />
+                      </span>
+                      <div>
+                        <h3>O essencial, sem reler tudo.</h3>
+                        <p>Resumo da conversa. Revise antes de assumir.</p>
+                      </div>
+                    </div>
+                    {lead.aiSummary && (
+                      <div className="summary-item summary-generated">
+                        <small>
+                          <Sparkles size={14} /> RESUMO DA IA
+                        </small>
+                        <p>{lead.aiSummary}</p>
+                        <small>
+                          Gerado na última resposta; consulte o histórico se
+                          houve mudanças.
+                        </small>
+                      </div>
+                    )}
+                    <div className="summary-item summary-interest">
+                      <small>
+                        <FileText size={14} /> INTERESSE DO CLIENTE
+                      </small>
+                      <p>{summary.interest}</p>
+                    </div>
+                    <div className="summary-item">
+                      <small>ÚLTIMA MENSAGEM DO CLIENTE</small>
+                      <blockquote>“{summary.last}”</blockquote>
+                    </div>
+                    <div
+                      className={
+                        'summary-item ' +
+                        (lead.needsHuman ? 'summary-attention' : '')
+                      }
+                    >
+                      <small>
+                        {lead.needsHuman
+                          ? 'POR QUE VOCÊ FOI CHAMADO'
+                          : 'SITUAÇÃO ATUAL'}
+                      </small>
+                      <p>{summary.reason}</p>
+                    </div>
+                    <div className="summary-item summary-next">
+                      <small>
+                        <ArrowUpRight size={14} /> PRÓXIMO PASSO
+                      </small>
+                      <p>{summary.next}</p>
+                    </div>
+                    <details className="context-editor">
+                      <summary>
+                        <Settings2 size={16} />
+                        Editar contexto e pendências
+                        <ChevronRight size={16} />
+                      </summary>
+                      <form
+                        className="follow-context"
+                        key={lead.id + '-' + lead.notes}
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          const f = new FormData(e.currentTarget);
+                          update(lead.id, (l) => ({
+                            ...l,
+                            notes: String(f.get('notes')),
+                            productId: String(f.get('product')) || null,
+                            due:
+                              l.status === 'Parado'
+                                ? String(f.get('due'))
+                                : l.due,
+                            reason: String(f.get('reason')),
+                          }));
+                        }}
+                      >
+                        <label className="field">
+                          Produto vinculado
+                          <NativeSelect
+                            name="product"
+                            defaultValue={lead.productId || ''}
+                          >
+                            <NativeSelectOption value="">
+                              Não identificado
+                            </NativeSelectOption>
+                            {allCatalogue(config).map(([id, name]) => (
+                              <NativeSelectOption key={id} value={id}>
+                                {name}
+                              </NativeSelectOption>
+                            ))}
+                          </NativeSelect>
+                        </label>
+                        <label className="field">
+                          Motivo e contexto
+                          <textarea
+                            name="notes"
+                            rows={3}
+                            defaultValue={lead.notes}
+                          />
+                        </label>
+                        <label className="field">
+                          Próxima retomada (preferência de teste)
+                          <input
+                            name="due"
+                            disabled={lead.status !== 'Parado'}
+                            defaultValue={lead.due}
+                          />
+                        </label>
+                        <label className="field">
+                          Pendências para o vendedor
+                          <textarea
+                            name="reason"
+                            defaultValue={lead.reason}
+                            rows={2}
+                          />
+                        </label>
+                        <button className="btn outline">Salvar contexto</button>
+                      </form>
+                    </details>
+                    {!terminal(lead) && (
+                      <button className="btn primary full" onClick={handover}>
+                        <Headphones size={17} />
+                        {lead.needsHuman || lead.ai
+                          ? 'Assumir com esse contexto'
+                          : 'Estou ciente, continuar atendimento'}
+                      </button>
+                    )}
+                    <section className="summary-item interests-card">
+                      <small>
+                        <Layers3 size={14} /> PRODUTOS MENCIONADOS
+                      </small>
+                      <p>Registro para revisão, sem campanha automática.</p>
+                      {lead.optOut ? (
+                        <p>Cliente recusou contato. Não usar para retomadas.</p>
+                      ) : lead.interests?.length ? (
+                        <ul>
+                          {lead.interests.slice(-8).map((item, i) => (
+                            <li key={item.messageId + item.productId + i}>
+                              <b>
+                                {allCatalogue(config).find(
+                                  (p) => p[0] === item.productId,
+                                )?.[1] || 'Produto'}
+                              </b>
+                              <span className="pill neutral">
+                                Menção a revisar
+                              </span>
+                              <blockquote>{item.evidence}</blockquote>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p>
+                          Novas menções serão registradas nas conversas
+                          autorizadas. Ausência de menção não significa falta de
+                          interesse.
+                        </p>
+                      )}
+                    </section>
+                    <details className="history">
+                      <summary>
+                        <Clock3 size={15} />
+                        Histórico do acompanhamento
+                      </summary>
+                      <ol>
+                        {lead.history.map((h, i) => (
+                          <li key={i}>{h}</li>
+                        ))}
+                      </ol>
+                    </details>
+                  </TabsContent>
+                </Tabs>
+              </aside>
+            </div>
+            <div className="workspace-footer">
+              <span>
+                <ShieldCheck size={14} />
+                Autonomia com limites. O vendedor sempre pode assumir.
+              </span>
+              <button onClick={() => setView('knowledge')}>
+                Ver regras do assistente <ArrowUpRight size={14} />
+              </button>
+            </div>
+          </TabsContent>
 
- <TabsContent value="pipeline"><div className="content-page"><Heading eyebrow="VISÃO DAS OPORTUNIDADES" title="Recuperações" subtitle="Acompanhe o andamento sem transformar sua rotina em um CRM complexo."><button className="btn primary" onClick={()=>setNewQuote(true)}><Plus size={17}/>Adicionar acompanhamento</button></Heading><div className="overview-metrics"><article className="metric-feature"><div><span>Oportunidades em aberto</span><Layers3 size={22}/></div><strong>{money(open.reduce((s,l)=>s+(l.value||0),0))}</strong><p>{open.length} conversas para continuar</p></article><article><span><Clock3 size={20}/>Conversas paradas</span><strong>{stopped.length.toString().padStart(2,'0')}</strong><p>Uma nova chance de retomar</p></article><article><span><Sparkles size={20}/>Acompanhadas pela IA</span><strong>{activeAI.length.toString().padStart(2,'0')}</strong><p>Autorizadas individualmente</p></article><article><span><Headphones size={20}/>Precisam de você</span><strong>{alerts.length.toString().padStart(2,'0')}</strong><p>Contexto pronto para assumir</p></article></div>
- <section className="surface opportunities"><div className="table-top"><Tabs value={filter} onValueChange={v=>setFilter(String(v))}><TabsList className="filter-tabs">{['Todos','Parado','Conversando','Vendido','Encerrado','Precisa de você'].map(s=><TabsTrigger value={s} key={s}>{s}</TabsTrigger>)}</TabsList></Tabs><label className="search-box"><Search size={16}/><input aria-label="Buscar orçamento" value={query} placeholder="Buscar orçamento…" onChange={e=>setQuery(e.target.value)}/></label></div><Table><TableHeader><TableRow>{['Cliente','Orçamento','Valor','Conversa','Responsável',''].map((s,i)=><TableHead key={i}>{s}</TableHead>)}</TableRow></TableHeader><TableBody>{filtered.map(l=><TableRow key={l.id}><TableCell><div className="table-client"><Avatar lead={l} small/><div><b>{l.name}</b><small>{l.company||'WhatsApp Web'}</small></div></div></TableCell><TableCell>{l.service}<small className="table-meta">{l.externalId?'Sincronizada':l.reference?'#'+l.reference:'Sem referência'} · {l.due}</small></TableCell><TableCell><b className="nowrap">{money(l.value)}</b></TableCell><TableCell><StatusPill status={l.status}/></TableCell><TableCell><span className={'table-owner '+(l.needsHuman?'attention':'')}>{l.ai?<Sparkles size={15}/>:l.needsHuman?<Bell size={15}/>:<UserRound size={15}/>} {l.ai?'Assistente IA':l.needsHuman?'Precisa de você':'Vendedor'}</span></TableCell><TableCell><button className="icon-btn" aria-label={'Abrir conversa com '+l.name} onClick={()=>select(l)}><ArrowUpRight size={20}/></button></TableCell></TableRow>)}</TableBody></Table>{!filtered.length&&<div className="empty-state"><Search size={28}/><h3>Nenhuma conversa por aqui.</h3><p>Experimente outro filtro ou adicione um orçamento.</p></div>}<div className="table-bottom">{filtered.length} de {leads.length} conversas<span>{realCount} sincronizada{realCount===1?'':'s'} pelo WhatsApp Web</span></div></section></div></TabsContent>
+          <TabsContent value="pipeline">
+            <div className="content-page">
+              <Heading
+                eyebrow="VISÃO DAS OPORTUNIDADES"
+                title="Recuperações"
+                subtitle="Acompanhe o andamento sem transformar sua rotina em um CRM complexo."
+              >
+                <button
+                  className="btn primary"
+                  onClick={() => setNewQuote(true)}
+                >
+                  <Plus size={17} />
+                  Adicionar acompanhamento
+                </button>
+              </Heading>
+              <div className="overview-metrics">
+                <article className="metric-feature">
+                  <div>
+                    <span>Oportunidades em aberto</span>
+                    <Layers3 size={22} />
+                  </div>
+                  <strong>
+                    {money(open.reduce((s, l) => s + (l.value || 0), 0))}
+                  </strong>
+                  <p>{open.length} conversas para continuar</p>
+                </article>
+                <article>
+                  <span>
+                    <Clock3 size={20} />
+                    Conversas paradas
+                  </span>
+                  <strong>{stopped.length.toString().padStart(2, '0')}</strong>
+                  <p>Uma nova chance de retomar</p>
+                </article>
+                <article>
+                  <span>
+                    <Sparkles size={20} />
+                    Acompanhadas pela IA
+                  </span>
+                  <strong>{activeAI.length.toString().padStart(2, '0')}</strong>
+                  <p>Autorizadas individualmente</p>
+                </article>
+                <article>
+                  <span>
+                    <Headphones size={20} />
+                    Precisam de você
+                  </span>
+                  <strong>{alerts.length.toString().padStart(2, '0')}</strong>
+                  <p>Contexto pronto para assumir</p>
+                </article>
+              </div>
+              <section className="surface opportunities">
+                <div className="table-top">
+                  <Tabs
+                    value={filter}
+                    onValueChange={(v) => setFilter(String(v))}
+                  >
+                    <TabsList className="filter-tabs">
+                      {[
+                        'Todos',
+                        'Parado',
+                        'Conversando',
+                        'Vendido',
+                        'Encerrado',
+                        'Precisa de você',
+                      ].map((s) => (
+                        <TabsTrigger value={s} key={s}>
+                          {s}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </Tabs>
+                  <label className="search-box">
+                    <Search size={16} />
+                    <input
+                      aria-label="Buscar orçamento"
+                      value={query}
+                      placeholder="Buscar orçamento…"
+                      onChange={(e) => setQuery(e.target.value)}
+                    />
+                  </label>
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {[
+                        'Cliente',
+                        'Orçamento',
+                        'Valor',
+                        'Conversa',
+                        'Responsável',
+                        '',
+                      ].map((s, i) => (
+                        <TableHead key={i}>{s}</TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map((l) => (
+                      <TableRow key={l.id}>
+                        <TableCell>
+                          <div className="table-client">
+                            <Avatar lead={l} small />
+                            <div>
+                              <b>{l.name}</b>
+                              <small>{l.company || 'WhatsApp'}</small>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {l.service}
+                          <small className="table-meta">
+                            {l.externalId
+                              ? 'Sincronizada'
+                              : l.reference
+                                ? '#' + l.reference
+                                : 'Sem referência'}{' '}
+                            · {l.due}
+                          </small>
+                        </TableCell>
+                        <TableCell>
+                          <b className="nowrap">{money(l.value)}</b>
+                        </TableCell>
+                        <TableCell>
+                          <StatusPill status={l.status} />
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={
+                              'table-owner ' + (l.needsHuman ? 'attention' : '')
+                            }
+                          >
+                            {l.ai ? (
+                              <Sparkles size={15} />
+                            ) : l.needsHuman ? (
+                              <Bell size={15} />
+                            ) : (
+                              <UserRound size={15} />
+                            )}{' '}
+                            {l.ai
+                              ? 'Assistente IA'
+                              : l.needsHuman
+                                ? 'Precisa de você'
+                                : 'Vendedor'}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <button
+                            className="icon-btn"
+                            aria-label={'Abrir conversa com ' + l.name}
+                            onClick={() => select(l)}
+                          >
+                            <ArrowUpRight size={20} />
+                          </button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {!filtered.length && (
+                  <div className="empty-state">
+                    <Search size={28} />
+                    <h3>Nenhuma conversa por aqui.</h3>
+                    <p>Experimente outro filtro ou adicione um orçamento.</p>
+                  </div>
+                )}
+                <div className="table-bottom">
+                  {filtered.length} de {leads.length} conversas
+                  <span>
+                    {realCount} sincronizada{realCount === 1 ? '' : 's'} pelo
+                    WhatsApp
+                  </span>
+                </div>
+              </section>
+            </div>
+          </TabsContent>
 
- <TabsContent value="results"><PeriodResults leads={leads} config={config} onSelect={select}/></TabsContent>
- <TabsContent value="knowledge"><School config={config} onSave={setConfig} onConfigure={()=>setView('settings')}/></TabsContent>
- <TabsContent value="settings"><SettingsPage config={config} onSave={setConfig} onSchool={()=>setView('knowledge')}/></TabsContent>
- </Tabs><footer className="product-footer"><span><img src="/retoma-icon.png" alt=""/>retoma <small>Sua próxima venda pode estar aqui.</small></span><span>Beta conectado · mantenha o WhatsApp Web aberto</span></footer>
+          <TabsContent value="results">
+            <PeriodResults leads={leads} config={config} onSelect={select} />
+          </TabsContent>
+          <TabsContent value="knowledge">
+            <School
+              config={config}
+              onSave={setConfig}
+              onConfigure={() => setView('settings')}
+            />
+          </TabsContent>
+          <TabsContent value="settings">
+            <SettingsPage
+              config={config}
+              onSave={setConfig}
+              onSchool={() => setView('knowledge')}
+            />
+          </TabsContent>
+        </Tabs>
+        <footer className="product-footer">
+          <span>
+            <img src="/retoma-icon.png" alt="" />
+            retoma <small>Sua próxima venda pode estar aqui.</small>
+          </span>
+          <span>Atendimento e IA em um só lugar</span>
+        </footer>
 
- <Dialog open={activation} onOpenChange={setActivation}><DialogContent className="retoma-dialog activation-dialog"><div className="dialog-emblem"><Sparkles size={25}/></div><DialogTitle>Ativar IA para {lead.name.split(' ')[0]}</DialogTitle><DialogDescription>Você escolhe o contexto e autoriza o acompanhamento apenas desta conversa.</DialogDescription><form onSubmit={e=>{e.preventDefault();if(!consent)return;const f=new FormData(e.currentTarget);try{update(lead.id,l=>activate({...l,notes:String(f.get('notes'))},consent));setActivation(false);setSideTab('follow');notify('Acompanhamento ativado na simulação','Experimente uma retomada ou uma resposta do cliente.');}catch{toast.add({title:'Não foi possível ativar',description:'Revise a autorização e o status da conversa.',type:'warning'});}}}><div className="activation-context"><FileText size={21}/><div><b>{lead.service}</b><span>{money(lead.value)} · {lead.company}</span></div></div><label className="field">Contexto que a IA deve considerar<textarea name="notes" defaultValue={lead.notes} rows={4} required/></label><div className="activation-checklist"><span><Check size={16}/>Usar os serviços e respostas aprovados pela empresa.</span><span><Check size={16}/>Pausar e resumir quando o vendedor for necessário.</span><span><Check size={16}/>Encerrar se o cliente não quiser mais contato.</span></div><label className="consent-line"><Checkbox checked={consent} onCheckedChange={setConsent}/><span>Confirmo, nesta simulação, que este cliente autorizou o contato e que o contexto foi revisado.</span></label><button className="btn primary full" type="submit" disabled={!consent}><Sparkles size={17}/>Ativar acompanhamento da IA</button><p className="demo-footnote">Ativação demonstrativa. Não conecta, lê ou envia mensagens no WhatsApp.</p></form></DialogContent></Dialog>
+        <Dialog open={activation} onOpenChange={setActivation}>
+          <DialogContent className="retoma-dialog activation-dialog">
+            <div className="dialog-emblem">
+              <Sparkles size={25} />
+            </div>
+            <DialogTitle>Ativar IA para {lead.name.split(' ')[0]}</DialogTitle>
+            <DialogDescription>
+              Você escolhe o contexto e autoriza o acompanhamento apenas desta
+              conversa.
+            </DialogDescription>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!consent) return;
+                const f = new FormData(e.currentTarget);
+                try {
+                  update(lead.id, (l) =>
+                    activate({ ...l, notes: String(f.get('notes')) }, consent),
+                  );
+                  setActivation(false);
+                  setSideTab('follow');
+                  notify(
+                    'Acompanhamento ativado',
+                    real
+                      ? 'A IA responderá às próximas mensagens desta conversa.'
+                      : 'Experimente uma retomada ou uma resposta do cliente.',
+                  );
+                } catch {
+                  toast.add({
+                    title: 'Não foi possível ativar',
+                    description: 'Revise a autorização e o status da conversa.',
+                    type: 'warning',
+                  });
+                }
+              }}
+            >
+              <div className="activation-context">
+                <FileText size={21} />
+                <div>
+                  <b>{lead.service}</b>
+                  <span>
+                    {money(lead.value)} · {lead.company}
+                  </span>
+                </div>
+              </div>
+              <label className="field">
+                Contexto que a IA deve considerar
+                <textarea
+                  name="notes"
+                  defaultValue={lead.notes}
+                  rows={4}
+                  required
+                />
+              </label>
+              <div className="activation-checklist">
+                <span>
+                  <Check size={16} />
+                  Usar os serviços e respostas aprovados pela empresa.
+                </span>
+                <span>
+                  <Check size={16} />
+                  Manter o alerta quando o vendedor for necessário.
+                </span>
+                <span>
+                  <Check size={16} />
+                  Encerrar se o cliente não quiser mais contato.
+                </span>
+              </div>
+              <label className="consent-line">
+                <Checkbox checked={consent} onCheckedChange={setConsent} />
+                <span>
+                  Confirmo que este cliente autorizou o contato e que o
+                  contexto foi revisado.
+                </span>
+              </label>
+              <button
+                className="btn primary full"
+                type="submit"
+                disabled={!consent}
+              >
+                <Sparkles size={17} />
+                Ativar acompanhamento da IA
+              </button>
+              {!real && (
+                <p className="demo-footnote">
+                  Este contato ainda é um exemplo e não envia mensagens reais.
+                </p>
+              )}
+            </form>
+          </DialogContent>
+        </Dialog>
 
- <Dialog open={newQuote} onOpenChange={setNewQuote}><DialogContent className="retoma-dialog"><DialogTitle>Adicionar acompanhamento à conversa</DialogTitle><DialogDescription>Use dados fictícios. A IA só será ativada após sua autorização.</DialogDescription><form onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);const id=Math.max(...leads.map(l=>l.id))+1;const item:Lead={id,name:String(f.get('name')).trim(),company:String(f.get('company')).trim(),service:String(f.get('service')).trim(),value:f.get('value')?Number(f.get('value')):null,date:new Date().toISOString().slice(0,10),reference:String(f.get('reference')||''),productId:null,recoveryPaused:false,notes:String(f.get('notes')),status:'Parado',ai:false,consent:false,optOut:false,due:'Hoje',attempts:0,reason:'',needsHuman:false,messages:[],history:['Acompanhamento criado. Aguardando autorização para a IA.']};if(!item.name||!item.service||(item.value!==null&&item.value<0))return;setLeads(ls=>[...ls,item]);setNewQuote(false);select(item);notify('Acompanhamento solicitado','Revise o contexto e ative a IA quando quiser.');}}><div className="two-fields"><label className="field">Cliente<input name="name" required/></label><label className="field">Empresa<input name="company"/></label></div><label className="field">Assunto do acompanhamento<input name="service" required placeholder="Ex.: fachada em ACM"/></label><div className="two-fields"><label className="field">Valor contextual (opcional)<input name="value" type="number" min="0.01" step="0.01"/></label><label className="field">Referência (opcional)<input name="reference"/></label></div><label className="field">Contexto para o atendimento<textarea name="notes" rows={3} placeholder="Medidas, condições e dúvidas já discutidas…"/></label><button className="btn primary full" type="submit"><Plus size={17}/>Adicionar acompanhamento</button></form></DialogContent></Dialog>
+        <Dialog open={newQuote} onOpenChange={setNewQuote}>
+          <DialogContent className="retoma-dialog">
+            <DialogTitle>Adicionar acompanhamento à conversa</DialogTitle>
+            <DialogDescription>
+              Use dados fictícios. A IA só será ativada após sua autorização.
+            </DialogDescription>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const f = new FormData(e.currentTarget);
+                const id = Math.max(...leads.map((l) => l.id)) + 1;
+                const item: Lead = {
+                  id,
+                  name: String(f.get('name')).trim(),
+                  company: String(f.get('company')).trim(),
+                  service: String(f.get('service')).trim(),
+                  value: f.get('value') ? Number(f.get('value')) : null,
+                  date: new Date().toISOString().slice(0, 10),
+                  reference: String(f.get('reference') || ''),
+                  productId: null,
+                  recoveryPaused: false,
+                  notes: String(f.get('notes')),
+                  status: 'Parado',
+                  ai: false,
+                  consent: false,
+                  optOut: false,
+                  due: 'Hoje',
+                  attempts: 0,
+                  reason: '',
+                  needsHuman: false,
+                  messages: [],
+                  history: [
+                    'Acompanhamento criado. Aguardando autorização para a IA.',
+                  ],
+                };
+                if (
+                  !item.name ||
+                  !item.service ||
+                  (item.value !== null && item.value < 0)
+                )
+                  return;
+                setLeads((ls) => [...ls, item]);
+                setNewQuote(false);
+                select(item);
+                notify(
+                  'Acompanhamento solicitado',
+                  'Revise o contexto e ative a IA quando quiser.',
+                );
+              }}
+            >
+              <div className="two-fields">
+                <label className="field">
+                  Cliente
+                  <input name="name" required />
+                </label>
+                <label className="field">
+                  Empresa
+                  <input name="company" />
+                </label>
+              </div>
+              <label className="field">
+                Assunto do acompanhamento
+                <input
+                  name="service"
+                  required
+                  placeholder="Ex.: fachada em ACM"
+                />
+              </label>
+              <div className="two-fields">
+                <label className="field">
+                  Valor contextual (opcional)
+                  <input name="value" type="number" min="0.01" step="0.01" />
+                </label>
+                <label className="field">
+                  Referência (opcional)
+                  <input name="reference" />
+                </label>
+              </div>
+              <label className="field">
+                Contexto para o atendimento
+                <textarea
+                  name="notes"
+                  rows={3}
+                  placeholder="Medidas, condições e dúvidas já discutidas…"
+                />
+              </label>
+              <button className="btn primary full" type="submit">
+                <Plus size={17} />
+                Adicionar acompanhamento
+              </button>
+            </form>
+          </DialogContent>
+        </Dialog>
 
- <Sheet open={notifications} onOpenChange={setNotifications}><SheetContent className="notifications-sheet"><div className="notifications-title"><span className="round-icon"><Bell size={24}/></span><SheetTitle>Conversas que precisam de você</SheetTitle><SheetDescription>A IA reuniu o contexto e continua disponível até você assumir o atendimento.</SheetDescription></div><div className="notification-cards">{alerts.map(l=><article key={l.id}><div className="notification-person"><Avatar lead={l} small/><span><b>{l.name}</b><small>{l.company||'WhatsApp Web'}</small></span><span className="pill amber">Sua vez</span></div><h3>{l.reason}</h3><p>{summarize(l).interest}</p><blockquote>“{summarize(l).last}”</blockquote><button className="btn primary full" onClick={()=>{select(l);setNotifications(false);setSideTab('summary')}}>Ver resumo e assumir <ArrowUpRight size={17}/></button></article>)}{!alerts.length&&<div className="empty-state"><ShieldCheck size={35}/><h3>Tudo em dia por aqui.</h3><p>Quando a IA precisar de ajuda, a conversa e o motivo aparecerão aqui.</p></div>}</div></SheetContent></Sheet>
- </div></Toaster>
+        <Sheet open={notifications} onOpenChange={setNotifications}>
+          <SheetContent className="notifications-sheet">
+            <div className="notifications-title">
+              <span className="round-icon">
+                <Bell size={24} />
+              </span>
+              <SheetTitle>Conversas que precisam de você</SheetTitle>
+              <SheetDescription>
+                A IA reuniu o contexto e continua disponível até você assumir o
+                atendimento.
+              </SheetDescription>
+            </div>
+            <div className="notification-cards">
+              {alerts.map((l) => (
+                <article key={l.id}>
+                  <div className="notification-person">
+                    <Avatar lead={l} small />
+                    <span>
+                      <b>{l.name}</b>
+                      <small>{l.company || 'WhatsApp'}</small>
+                    </span>
+                    <span className="pill amber">Sua vez</span>
+                  </div>
+                  <h3>{l.reason}</h3>
+                  <p>{summarize(l).interest}</p>
+                  <blockquote>“{summarize(l).last}”</blockquote>
+                  <button
+                    className="btn primary full"
+                    onClick={() => {
+                      select(l);
+                      setNotifications(false);
+                      setSideTab('summary');
+                    }}
+                  >
+                    Ver resumo e assumir <ArrowUpRight size={17} />
+                  </button>
+                </article>
+              ))}
+              {!alerts.length && (
+                <div className="empty-state">
+                  <ShieldCheck size={35} />
+                  <h3>Tudo em dia por aqui.</h3>
+                  <p>
+                    Quando a IA precisar de ajuda, a conversa e o motivo
+                    aparecerão aqui.
+                  </p>
+                </div>
+              )}
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+    </Toaster>
+  );
 }
