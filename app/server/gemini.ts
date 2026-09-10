@@ -15,8 +15,8 @@ export async function generate(config:Config,lead:Lead,question:string,mode:stri
  const b=business(config),products=relevantProducts(config,question,lead),knowledge=retrieveKnowledge(question);
  const runtimeEnv=env as unknown as Record<string,string>;
  const key=runtimeEnv.GEMINI_API_KEY||process.env.GEMINI_API_KEY;if(!key)throw new AppError(503,'Credencial da IA não configurada.');
- const configuredModel=runtimeEnv.GEMINI_MODEL||process.env.GEMINI_MODEL||'gemini-2.5-flash-lite';
- const model=/^[a-z0-9._-]+$/i.test(configuredModel)?configuredModel:'gemini-2.5-flash-lite';
+ const configuredModel=runtimeEnv.GEMINI_MODEL||process.env.GEMINI_MODEL||'gemini-3.5-flash-lite';
+ const model=/^[a-z0-9._-]+$/i.test(configuredModel)?configuredModel:'gemini-3.5-flash-lite';
  const first=!lead.messages.some(m=>m.role==='ia'&&m.provider==='Gemini');
  const rules=`Você é a assistente virtual de recuperação de vendas do Retoma. Use português claro, natural, conciso.
 ${first?'Comece identificando-se como assistente virtual da empresa.':'Não repita a apresentação.'}

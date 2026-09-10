@@ -18,7 +18,7 @@ const localBindingConfig = {
   // Wrangler replaces dashboard text variables on deploy, so production-safe
   // values must live in the generated Worker configuration.
   vars: {
-    GEMINI_MODEL: 'gemini-2.5-flash-lite',
+    GEMINI_MODEL: 'gemini-3.5-flash-lite',
     WHATSAPP_PHONE_NUMBER_ID: '1268172406387019',
     WHATSAPP_WABA_ID: '2545415742569584',
     WHATSAPP_WORKSPACE_OWNER: 'retoma-principal',
