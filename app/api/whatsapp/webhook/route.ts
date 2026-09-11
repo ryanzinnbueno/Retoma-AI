@@ -5,6 +5,7 @@ import { terminal, type Lead, type Message } from '../../../recovery-model';
 import { validateDecision } from '../../../server/decisions';
 import { generate, mandatory, type Decision, type MediaInput } from '../../../server/gemini';
 import { AppError, commit, db, load } from '../../../server/store';
+import {connectionForNumber,connectionForOwner,type WhatsAppCredentials} from '../../../server/whatsapp-connection';
 
 type MetaMessage = {
   id: string;
@@ -71,12 +72,12 @@ function encodeBase64(buffer:ArrayBuffer){
   for(let offset=0;offset<bytes.length;offset+=32768)binary+=String.fromCharCode(...bytes.subarray(offset,offset+32768));
   return btoa(binary);
 }
-async function downloadMedia(message:MetaMessage):Promise<MediaInput|null>{
+async function downloadMedia(message:MetaMessage,connection:WhatsAppCredentials):Promise<MediaInput|null>{
   const type=message.type==='image'?'image':message.type==='audio'?'audio':null;
   if(!type)return null;
   const media=type==='image'?message.image:message.audio,id=media?.id?.trim();
   if(!id)return null;
-  const version=settings().META_GRAPH_VERSION?.trim()||'v25.0',token=required('WHATSAPP_ACCESS_TOKEN'),phone=required('WHATSAPP_PHONE_NUMBER_ID');
+  const version=settings().META_GRAPH_VERSION?.trim()||'v25.0',token=connection.accessToken,phone=connection.phoneNumberId;
   const metadataResponse=await fetch(`https://graph.facebook.com/${version}/${encodeURIComponent(id)}?phone_number_id=${encodeURIComponent(phone)}`,{
     headers:{Authorization:`Bearer ${token}`},signal:AbortSignal.timeout(10000),
   });
@@ -120,22 +121,22 @@ function newLead(id: number, item: QueuedMessage): Lead {
     events: [{ id: crypto.randomUUID(), at: new Date().toISOString(), status: 'Conversando', value: null, confirmed: false }],
   };
 }
-async function sendText(to: string, body: string) {
+async function sendText(connection:WhatsAppCredentials,to: string, body: string) {
   const version = settings().META_GRAPH_VERSION?.trim() || 'v25.0';
-  const response = await fetch(`https://graph.facebook.com/${version}/${required('WHATSAPP_PHONE_NUMBER_ID')}/messages`, {
+  const response = await fetch(`https://graph.facebook.com/${version}/${connection.phoneNumberId}/messages`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${required('WHATSAPP_ACCESS_TOKEN')}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${connection.accessToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ messaging_product: 'whatsapp', recipient_type: 'individual', to, type: 'text', text: { preview_url: false, body } }),
     signal: AbortSignal.timeout(15000),
   });
   if (!response.ok) { await response.body?.cancel(); throw new AppError(502, `WhatsApp recusou o envio (${response.status}).`); }
   await response.body?.cancel();
 }
-async function showTyping(messageId: string) {
+async function showTyping(connection:WhatsAppCredentials,messageId: string) {
   const version = settings().META_GRAPH_VERSION?.trim() || 'v25.0';
-  const response = await fetch(`https://graph.facebook.com/${version}/${required('WHATSAPP_PHONE_NUMBER_ID')}/messages`, {
+  const response = await fetch(`https://graph.facebook.com/${version}/${connection.phoneNumberId}/messages`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${required('WHATSAPP_ACCESS_TOKEN')}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${connection.accessToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ messaging_product: 'whatsapp', status: 'read', message_id: messageId, typing_indicator: { type: 'text' } }),
     signal: AbortSignal.timeout(10000),
   });
@@ -159,6 +160,7 @@ async function processQueued(owner: string, eventId: string) {
   try {
     const event = await db().prepare('SELECT request FROM events WHERE owner=? AND id=?').bind(owner, eventId).first<{ request: string }>();
     if (!event) return;
+    const connection=await connectionForOwner(owner);if(!connection)throw new AppError(503,'Conexão do WhatsApp não encontrada.');
     const item = JSON.parse(event.request) as QueuedMessage, incoming = inboundText(item.message);
     let snapshot = await load(owner), lead = snapshot.data.leads.find((candidate) => candidate.externalId === `whatsapp:${item.message.from}`);
     if (!lead) {
@@ -179,8 +181,8 @@ async function processQueued(owner: string, eventId: string) {
     if (!lead.ai || lead.optOut || terminal(lead) || business(snapshot.data.config).paused) {
       await db().prepare("UPDATE events SET status='done',result=? WHERE owner=? AND id=?").bind(JSON.stringify({ action: 'manual' }), owner, eventId).run(); return;
     }
-    await showTyping(eventId).catch((error) => console.warn('WhatsApp typing indicator failed', error instanceof Error ? error.message : 'unknown'));
-    const media=await downloadMedia(item.message);
+    await showTyping(connection,eventId).catch((error) => console.warn('WhatsApp typing indicator failed', error instanceof Error ? error.message : 'unknown'));
+    const media=await downloadMedia(item.message,connection);
     const mediaOnly = incoming.startsWith('[Cliente enviou')&&!media;
     const forced: Decision | null = mediaOnly ? {
       text: 'Recebi seu arquivo. O vendedor foi avisado para analisar esse conteúdo. Enquanto isso, você pode me explicar por texto qual é a sua dúvida.',
@@ -206,10 +208,10 @@ async function processQueued(owner: string, eventId: string) {
       const parts = conversationalMessages(decision.text);
       for (let index = 0; index < parts.length; index++) {
         if (index > 0) {
-          await showTyping(eventId).catch(() => {});
+          await showTyping(connection,eventId).catch(() => {});
           await delay(Math.min(1600, 650 + parts[index].length * 7));
         }
-        await sendText(item.message.from, parts[index]);
+        await sendText(connection,item.message.from, parts[index]);
       }
       await setDelivery(owner, next.id, replyId, 'sent');
       await db().prepare("UPDATE events SET status='done',result=? WHERE owner=? AND id=?").bind(JSON.stringify({ action: decision.action }), owner, eventId).run();
@@ -232,19 +234,18 @@ export async function POST(request: Request) {
     const raw = await request.arrayBuffer();
     if (raw.byteLength > 1_000_000) return new Response('Carga muito grande.', { status: 413 });
     if (!(await validSignature(raw, request.headers.get('x-hub-signature-256')))) return new Response('Assinatura inválida.', { status: 401, headers: noStore });
-    const owner = required('WHATSAPP_WORKSPACE_OWNER'), expectedPhone = required('WHATSAPP_PHONE_NUMBER_ID'), expectedWaba = required('WHATSAPP_WABA_ID');
-    const queued: string[] = [];
+    const queued: {owner:string;id:string}[] = [];
     for (const item of extract(JSON.parse(new TextDecoder().decode(raw)))) {
-      if (item.phoneNumberId !== expectedPhone || item.wabaId !== expectedWaba) continue;
+      const connection=await connectionForNumber(item.phoneNumberId,item.wabaId);if(!connection)continue;const owner=connection.owner;
       const existing = await db().prepare('SELECT status FROM events WHERE owner=? AND id=?').bind(owner, item.message.id).first<{ status: string }>();
       if (!existing) {
-        await db().prepare("INSERT INTO events(owner,id,lead_id,request,status,created) VALUES(?,?,0,?,'queued',?)").bind(owner, item.message.id, JSON.stringify(item), Date.now()).run(); queued.push(item.message.id);
+        await db().prepare("INSERT INTO events(owner,id,lead_id,request,status,created) VALUES(?,?,0,?,'queued',?)").bind(owner, item.message.id, JSON.stringify(item), Date.now()).run(); queued.push({owner,id:item.message.id});
       } else if (existing.status === 'failed') {
         const retried = await db().prepare("UPDATE events SET status='queued',created=? WHERE owner=? AND id=? AND status='failed'").bind(Date.now(), owner, item.message.id).run();
-        if (retried.meta.changes) queued.push(item.message.id);
+        if (retried.meta.changes) queued.push({owner,id:item.message.id});
       }
     }
-    if (queued.length) waitUntil(Promise.all(queued.map((id) => processQueued(owner, id))).then(() => undefined));
+    if (queued.length) waitUntil(Promise.all(queued.map((item) => processQueued(item.owner,item.id))).then(() => undefined));
     return Response.json({ received: true }, { status: 200, headers: noStore });
   } catch (error) {
     console.error('WhatsApp webhook rejected', error instanceof Error ? error.message : 'unknown');

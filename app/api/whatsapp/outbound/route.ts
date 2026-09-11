@@ -1,15 +1,15 @@
 import {env} from 'cloudflare:workers';
 import {terminal,type Message} from '../../../recovery-model';
 import {AppError,commit,db,failure,identity,json,load,origin,readBody} from '../../../server/store';
+import {connectionForOwner,type WhatsAppCredentials} from '../../../server/whatsapp-connection';
 
-type Runtime={WHATSAPP_ACCESS_TOKEN?:string;WHATSAPP_PHONE_NUMBER_ID?:string;META_GRAPH_VERSION?:string};
+type Runtime={META_GRAPH_VERSION?:string};
 const runtime=()=>env as unknown as Runtime;
-function required(name:keyof Runtime){const value=runtime()[name]?.trim();if(!value)throw new AppError(503,`Configuração ausente: ${name}`);return value}
 
-async function send(to:string,text:string){
+async function send(connection:WhatsAppCredentials,to:string,text:string){
  const version=runtime().META_GRAPH_VERSION?.trim()||'v25.0';
- const response=await fetch(`https://graph.facebook.com/${version}/${encodeURIComponent(required('WHATSAPP_PHONE_NUMBER_ID'))}/messages`,{
-  method:'POST',headers:{Authorization:`Bearer ${required('WHATSAPP_ACCESS_TOKEN')}`,'Content-Type':'application/json'},
+ const response=await fetch(`https://graph.facebook.com/${version}/${encodeURIComponent(connection.phoneNumberId)}/messages`,{
+  method:'POST',headers:{Authorization:`Bearer ${connection.accessToken}`,'Content-Type':'application/json'},
   body:JSON.stringify({messaging_product:'whatsapp',recipient_type:'individual',to,type:'text',text:{preview_url:false,body:text}}),
   signal:AbortSignal.timeout(15000),
  });
@@ -34,7 +34,8 @@ export async function POST(request:Request){
   if(existing?.status==='done')return json({sent:true,snapshot:await load(owner)});
   if(existing)throw new AppError(409,'Esta mensagem já está sendo processada. Atualize a conversa.');
   await db().prepare("INSERT INTO events(owner,id,lead_id,request,status,created) VALUES(?,?,?,?, 'processing',?)").bind(owner,requestId,leadId,JSON.stringify({text}),Date.now()).run();
-  const providerId=await send(lead.externalId.slice('whatsapp:'.length),text);
+  const connection=await connectionForOwner(owner);if(!connection)throw new AppError(503,'Conecte o WhatsApp antes de enviar mensagens.');
+  const providerId=await send(connection,lead.externalId.slice('whatsapp:'.length),text);
   for(let attempt=0;attempt<3;attempt++){
    const current=await load(owner),target=current.data.leads.find(item=>item.id===leadId);
    if(!target)throw new AppError(404,'Conversa não encontrada após o envio.');
