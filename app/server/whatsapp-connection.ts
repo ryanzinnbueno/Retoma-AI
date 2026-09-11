@@ -7,7 +7,7 @@ type Runtime={
  WHATSAPP_ACCESS_TOKEN?:string;WHATSAPP_PHONE_NUMBER_ID?:string;WHATSAPP_WABA_ID?:string;
  WHATSAPP_WORKSPACE_OWNER?:string;
 };
-export type WhatsAppCredentials={owner:string;accessToken:string;phoneNumberId:string;wabaId:string;displayPhone?:string;businessName?:string};
+export type WhatsAppCredentials={owner:string;accessToken:string;phoneNumberId:string;wabaId:string;displayPhone?:string;businessName?:string;source:'embedded'|'server'};
 const runtime=()=>env as unknown as Runtime;
 const version=()=>runtime().META_GRAPH_VERSION?.trim()||'v25.0';
 const bytes=(value:string)=>{const decoded=atob(value),result=new Uint8Array(decoded.length);for(let index=0;index<decoded.length;index++)result[index]=decoded.charCodeAt(index);return result};
@@ -31,8 +31,8 @@ export function embeddedSignupPublicConfig(){
 }
 export async function connectionForOwner(owner:string):Promise<WhatsAppCredentials|null>{
  const row=await db().prepare('SELECT owner,waba_id,phone_number_id,display_phone,business_name,access_token FROM whatsapp_connections WHERE owner=?').bind(owner).first<{owner:string;waba_id:string;phone_number_id:string;display_phone:string|null;business_name:string|null;access_token:string}>().catch(()=>null);
- if(row)return {owner:row.owner,wabaId:row.waba_id,phoneNumberId:row.phone_number_id,displayPhone:row.display_phone||undefined,businessName:row.business_name||undefined,accessToken:await open(row.access_token)};
- const r=runtime();if(owner===(r.WHATSAPP_WORKSPACE_OWNER?.trim()||'')&&r.WHATSAPP_ACCESS_TOKEN?.trim()&&r.WHATSAPP_PHONE_NUMBER_ID?.trim()&&r.WHATSAPP_WABA_ID?.trim())return {owner,accessToken:r.WHATSAPP_ACCESS_TOKEN.trim(),phoneNumberId:r.WHATSAPP_PHONE_NUMBER_ID.trim(),wabaId:r.WHATSAPP_WABA_ID.trim()};
+ if(row)return {owner:row.owner,wabaId:row.waba_id,phoneNumberId:row.phone_number_id,displayPhone:row.display_phone||undefined,businessName:row.business_name||undefined,accessToken:await open(row.access_token),source:'embedded'};
+ const r=runtime();if(owner===(r.WHATSAPP_WORKSPACE_OWNER?.trim()||'')&&r.WHATSAPP_ACCESS_TOKEN?.trim()&&r.WHATSAPP_PHONE_NUMBER_ID?.trim()&&r.WHATSAPP_WABA_ID?.trim())return {owner,accessToken:r.WHATSAPP_ACCESS_TOKEN.trim(),phoneNumberId:r.WHATSAPP_PHONE_NUMBER_ID.trim(),wabaId:r.WHATSAPP_WABA_ID.trim(),source:'server'};
  return null;
 }
 export async function connectionForNumber(phoneNumberId:string,wabaId:string):Promise<WhatsAppCredentials|null>{
