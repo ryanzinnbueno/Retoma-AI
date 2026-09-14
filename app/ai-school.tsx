@@ -50,6 +50,7 @@ import {
   catalogue,
   allCatalogue,
   categories,
+  categoryActive,
   availability,
   productStates,
   serviceLabels,
@@ -143,7 +144,7 @@ function ListField({
               .split(',')
               .map((item) => item.trim())
               .filter(Boolean)
-              .slice(0, 20),
+              .slice(0, 40),
           )
         }
       />
@@ -494,7 +495,7 @@ export function SettingsPage({
           </TabsTrigger>
           <TabsTrigger value="products">
             <Layers size={17} />
-            Produtos e serviços
+            Base de conhecimento da IA
           </TabsTrigger>
           <TabsTrigger value="integrations">
             <MessageCircle size={17} />
@@ -834,13 +835,22 @@ function ProductCatalogue({
   const entries = allCatalogue(config);
   const [adding, setAdding] = useState<'service' | 'category' | null>(null),
     [formError, setFormError] = useState('');
-  const filtered = entries.filter(
-    (c) =>
-      c[1].toLowerCase().includes(query.toLowerCase()) &&
+  const filtered = entries.filter((c) => {
+    const product = b.products.find((p) => p.id === c[0]);
+    return (
+      [
+        c[1],
+        ...(product?.synonyms || []),
+        ...(product?.popularTerms || []),
+        ...(product?.keywords || []),
+      ]
+        .join(' ')
+        .toLowerCase()
+        .includes(query.toLowerCase()) &&
       (category === 'Todas' || c[2] === category) &&
-      (state === 'Todos' ||
-        b.products.find((p) => p.id === c[0])?.state === state),
-  );
+      (state === 'Todos' || product?.state === state)
+    );
+  });
   const update = (p: Partial<Product>) =>
     setEditing((e) => (e ? { ...e, ...p } : e));
   return (
@@ -849,7 +859,7 @@ function ProductCatalogue({
         <span>
           <Layers size={20} />
           {entries.length} produtos e serviços · {categories(config).length}{' '}
-          categorias
+          categorias · base configurável da IA
         </span>
         <button
           className="btn outline"
@@ -898,15 +908,20 @@ function ProductCatalogue({
         />
       </div>
       <p className="inline-tip">
-        A lista mostra possibilidades do setor, não serviços automaticamente
-        oferecidos. Selecionar um produto nunca inicia contatos.
+        A lista é uma base de conhecimento do setor. A IA só pode oferecer
+        serviços marcados como “Oferecemos” dentro de categorias ativas.
       </p>
       <div className="catalogue-grid">
         {filtered.map(([id, name, cat, description]) => {
           const p = b.products.find((p) => p.id === id)!;
           return (
             <article className="surface product-card" key={id}>
-              <small>{cat}</small>
+              <small>
+                {cat} ·{' '}
+                {categoryActive(config, cat)
+                  ? 'categoria ativa'
+                  : 'categoria inativa'}
+              </small>
               <h3>{name}</h3>
               <p>{description}</p>
               <span
@@ -1029,75 +1044,148 @@ function ProductCatalogue({
                     update({ state: state as Product['state'] })
                   }
                 />
-                {editing.state === 'Oferecemos' && (
-                  <>
-                    <details open>
-                      <summary>Características confirmadas</summary>
-                      <ListField
-                        label="Materiais"
-                        value={editing.materials}
-                        onChange={(materials) => update({ materials })}
-                        placeholder="Ex.: ACM 3 mm, lona 440 g, vinil adesivo"
-                      />
-                      <ListField
-                        label="Estruturas"
-                        value={editing.structures || []}
-                        onChange={(structures) => update({ structures })}
-                        placeholder="Ex.: metalon galvanizado, estrutura de alumínio"
-                      />
-                      <ListField
-                        label="Acabamentos"
-                        value={editing.finishes}
-                        onChange={(finishes) => update({ finishes })}
-                        placeholder="Ex.: recorte, dobra, pintura, laminação"
-                      />
-                      <ListField
-                        label="Aplicações atendidas"
-                        value={editing.applications}
-                        onChange={(applications) => update({ applications })}
-                        placeholder="Ex.: fachada externa, recepção, vitrine"
-                      />
-                      <p>
-                        Opções são possibilidades para confirmação, não
-                        garantias de desempenho.
-                      </p>
-                    </details>
-                    <details open>
-                      <summary>Serviços deste produto</summary>
-                      {Object.entries(serviceLabels).map(([key, label]) => (
-                        <div key={key}>
-                          <SelectField
-                            label={label}
-                            value={editing[key as keyof Product] as string}
-                            options={['Padrão da empresa', ...availability]}
-                            onChange={(v) => update({ [key]: v })}
-                          />
-                          <small>
-                            {editing[key as keyof Product] ===
-                            'Padrão da empresa'
-                              ? 'Herdado: ' + b[key as keyof Business]
-                              : 'Configuração deste produto.'}
-                          </small>
-                        </div>
-                      ))}
-                    </details>
+                <>
+                  <details open>
+                    <summary>Características confirmadas</summary>
+                    <ListField
+                      label="Materiais"
+                      value={editing.materials}
+                      onChange={(materials) => update({ materials })}
+                      placeholder="Ex.: ACM 3 mm, lona 440 g, vinil adesivo"
+                    />
+                    <ListField
+                      label="Variações"
+                      value={editing.variations || []}
+                      onChange={(variations) => update({ variations })}
+                      placeholder="Ex.: iluminado, sem iluminação, dupla face"
+                    />
+                    <ListField
+                      label="Características técnicas confirmadas"
+                      value={editing.characteristics || []}
+                      onChange={(characteristics) =>
+                        update({ characteristics })
+                      }
+                      placeholder="Inclua somente características confirmadas pela empresa"
+                    />
+                    <ListField
+                      label="Ambientes indicados"
+                      value={editing.environments || []}
+                      onChange={(environments) => update({ environments })}
+                      placeholder="Ex.: fachada externa, recepção, vitrine"
+                    />
+                    <ListField
+                      label="Estruturas"
+                      value={editing.structures || []}
+                      onChange={(structures) => update({ structures })}
+                      placeholder="Ex.: metalon galvanizado, estrutura de alumínio"
+                    />
+                    <ListField
+                      label="Acabamentos"
+                      value={editing.finishes}
+                      onChange={(finishes) => update({ finishes })}
+                      placeholder="Ex.: recorte, dobra, pintura, laminação"
+                    />
+                    <ListField
+                      label="Aplicações atendidas"
+                      value={editing.applications}
+                      onChange={(applications) => update({ applications })}
+                      placeholder="Ex.: fachada externa, recepção, vitrine"
+                    />
+                    <p>
+                      Opções são possibilidades para confirmação, não garantias
+                      de desempenho.
+                    </p>
+                  </details>
+                  <details open>
+                    <summary>Como os clientes pedem este serviço</summary>
+                    <ListField
+                      label="Sinônimos"
+                      value={editing.synonyms || []}
+                      onChange={(synonyms) => update({ synonyms })}
+                      placeholder="Ex.: letra 3D, letra em relevo"
+                    />
+                    <ListField
+                      label="Termos populares"
+                      value={editing.popularTerms || []}
+                      onChange={(popularTerms) => update({ popularTerms })}
+                      placeholder="Ex.: letra saltada, placa que fica em pé"
+                    />
+                    <ListField
+                      label="Formas de pedir"
+                      value={editing.clientPhrases || []}
+                      onChange={(clientPhrases) => update({ clientPhrases })}
+                      placeholder="Ex.: quero minha logo com luz atrás"
+                    />
+                    <ListField
+                      label="Palavras-chave"
+                      value={editing.keywords || []}
+                      onChange={(keywords) => update({ keywords })}
+                      placeholder="Ex.: fachada, ACM, revestimento"
+                    />
+                  </details>
+                  <details open>
+                    <summary>Condução do atendimento</summary>
+                    <ListField
+                      label="Perguntas de qualificação"
+                      value={editing.qualificationQuestions || []}
+                      onChange={(qualificationQuestions) =>
+                        update({ qualificationQuestions })
+                      }
+                      placeholder="Ex.: Onde será instalado? Qual o tamanho aproximado?"
+                    />
+                    <ListField
+                      label="Serviços relacionados"
+                      value={editing.relatedServices || []}
+                      onChange={(relatedServices) =>
+                        update({ relatedServices })
+                      }
+                      placeholder="Ex.: letra caixa, adesivação de vitrine"
+                    />
                     <label className="field">
-                      Restrições confirmadas
+                      Instruções específicas para a IA
                       <textarea
-                        maxLength={1000}
-                        rows={3}
-                        value={editing.restrictions}
-                        onChange={(e) =>
-                          update({ restrictions: e.target.value })
+                        maxLength={2000}
+                        rows={4}
+                        value={editing.aiInstructions || ''}
+                        onChange={(event) =>
+                          update({ aiInstructions: event.target.value })
                         }
+                        placeholder="Como explicar, o que confirmar e o que não presumir."
                       />
                     </label>
-                    <p>
-                      Instalação disponível não significa instalação inclusa.
-                      Nunca presumir preço, prazo, parcelamento ou garantia.
-                    </p>
-                  </>
-                )}
+                  </details>
+                  <details open>
+                    <summary>Serviços deste produto</summary>
+                    {Object.entries(serviceLabels).map(([key, label]) => (
+                      <div key={key}>
+                        <SelectField
+                          label={label}
+                          value={editing[key as keyof Product] as string}
+                          options={['Padrão da empresa', ...availability]}
+                          onChange={(v) => update({ [key]: v })}
+                        />
+                        <small>
+                          {editing[key as keyof Product] === 'Padrão da empresa'
+                            ? 'Herdado: ' + b[key as keyof Business]
+                            : 'Configuração deste produto.'}
+                        </small>
+                      </div>
+                    ))}
+                  </details>
+                  <label className="field">
+                    Restrições confirmadas
+                    <textarea
+                      maxLength={1000}
+                      rows={3}
+                      value={editing.restrictions}
+                      onChange={(e) => update({ restrictions: e.target.value })}
+                    />
+                  </label>
+                  <p>
+                    Instalação disponível não significa instalação inclusa.
+                    Nunca presumir preço, prazo, parcelamento ou garantia.
+                  </p>
+                </>
                 <button className="btn primary full">
                   <Check size={16} />
                   Salvar configuração
@@ -1169,6 +1257,11 @@ function ProductCatalogue({
                           .filter((item) => item !== categoryTarget)
                           .concat(name)
                       : [...(b.categories || []), name],
+                    disabledCategories: categoryTarget
+                      ? (b.disabledCategories || []).map((item) =>
+                          item === categoryTarget ? name : item,
+                        )
+                      : b.disabledCategories,
                     products: categoryTarget
                       ? b.products.map((product) => {
                           const current = allCatalogue(config).find(
@@ -1201,6 +1294,16 @@ function ProductCatalogue({
                   structures: [],
                   finishes: [],
                   applications: [],
+                  variations: [],
+                  characteristics: [],
+                  environments: [],
+                  synonyms: [],
+                  popularTerms: [],
+                  clientPhrases: [],
+                  keywords: [],
+                  qualificationQuestions: [],
+                  relatedServices: [],
+                  aiInstructions: '',
                   art: 'Padrão da empresa',
                   installation: 'Padrão da empresa',
                   delivery: 'Padrão da empresa',
@@ -1235,6 +1338,38 @@ function ProductCatalogue({
                     </NativeSelectOption>
                   ))}
                 </NativeSelect>
+              </label>
+            )}
+            {adding === 'category' && categoryTarget && (
+              <label className="fixed-rule">
+                <Switch
+                  checked={categoryActive(config, categoryTarget)}
+                  onCheckedChange={(active) =>
+                    onSave({
+                      ...config,
+                      business: {
+                        ...b,
+                        disabledCategories: active
+                          ? (b.disabledCategories || []).filter(
+                              (item) => item !== categoryTarget,
+                            )
+                          : Array.from(
+                              new Set([
+                                ...(b.disabledCategories || []),
+                                categoryTarget,
+                              ]),
+                            ),
+                      },
+                    })
+                  }
+                />
+                <span>
+                  Categoria ativa para a IA
+                  <small>
+                    Desative para impedir que todos os serviços desta categoria
+                    sejam oferecidos.
+                  </small>
+                </span>
               </label>
             )}
             <label className="field">
@@ -1291,6 +1426,9 @@ function ProductCatalogue({
                     business: {
                       ...b,
                       categories: (b.categories || []).filter(
+                        (item) => item !== categoryTarget,
+                      ),
+                      disabledCategories: (b.disabledCategories || []).filter(
                         (item) => item !== categoryTarget,
                       ),
                       products: b.products.map((product) =>

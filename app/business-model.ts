@@ -5,6 +5,7 @@ import {
   type Config,
   type Lead,
 } from './recovery-model';
+import { knowledgeCatalogue } from './knowledge-catalogue';
 export const availability = [
   'Precisa confirmar',
   'Disponível',
@@ -16,53 +17,10 @@ export const productStates = [
   'Oferecemos',
   'Não oferecemos',
 ] as const;
-export const catalogue = [
-  [
-    'acm',
-    'Fachadas em ACM',
-    'Fachadas',
-    'Revestimento e identificação de fachadas.',
-  ],
-  ['letras', 'Letras-caixa', 'Fachadas', 'Identificação com letras em volume.'],
-  [
-    'luz',
-    'Identificação com iluminação',
-    'Fachadas',
-    'Identificação visual iluminada.',
-  ],
-  [
-    'banner',
-    'Banners',
-    'Impressão e sinalização',
-    'Peças impressas para comunicação visual.',
-  ],
-  [
-    'faixa',
-    'Faixas',
-    'Impressão e sinalização',
-    'Comunicação em formato de faixa.',
-  ],
-  [
-    'placa',
-    'Placas',
-    'Impressão e sinalização',
-    'Placas de identificação e informação.',
-  ],
-  [
-    'sinal',
-    'Sinalização interna',
-    'Impressão e sinalização',
-    'Orientação e identificação de ambientes.',
-  ],
-  ['vitrine', 'Adesivos para vitrines', 'Adesivos', 'Aplicações em vitrines.'],
-  ['parede', 'Adesivos para paredes', 'Adesivos', 'Aplicações em paredes.'],
-  [
-    'veiculo',
-    'Adesivos para veículos',
-    'Adesivos',
-    'Identificação e comunicação em veículos.',
-  ],
-  ['piso', 'Adesivos para pisos', 'Adesivos', 'Aplicações em pisos.'],
+export const catalogue: Array<readonly [string, string, string, string]> = [
+  ...knowledgeCatalogue.map(
+    (item) => [item.id, item.name, item.category, item.description] as const,
+  ),
   [
     'cartao',
     'Cartões de visita',
@@ -70,7 +28,7 @@ export const catalogue = [
     'Impressos para apresentação e contato.',
   ],
   ['panfleto', 'Panfletos', 'Outros impressos', 'Impressos para divulgação.'],
-] as const;
+];
 export type Product = {
   id: string;
   name?: string;
@@ -81,6 +39,16 @@ export type Product = {
   structures?: string[];
   finishes: string[];
   applications: string[];
+  variations?: string[];
+  characteristics?: string[];
+  environments?: string[];
+  synonyms?: string[];
+  popularTerms?: string[];
+  clientPhrases?: string[];
+  keywords?: string[];
+  qualificationQuestions?: string[];
+  relatedServices?: string[];
+  aiInstructions?: string;
   art: Availability | 'Padrão da empresa';
   installation: Availability | 'Padrão da empresa';
   delivery: Availability | 'Padrão da empresa';
@@ -89,6 +57,7 @@ export type Product = {
 };
 export type Business = {
   categories?: string[];
+  disabledCategories?: string[];
   timezone: string;
   humanContact: string;
   humanDays: string;
@@ -124,19 +93,34 @@ export function defaults(): Business {
     delivery: 'Precisa confirmar',
     pickup: 'Precisa confirmar',
     payments: [],
-    products: catalogue.map(([id]) => ({
-      id,
-      state: 'Não configurado',
-      materials: [],
-      structures: [],
-      finishes: [],
-      applications: [],
-      art: 'Padrão da empresa',
-      installation: 'Padrão da empresa',
-      delivery: 'Padrão da empresa',
-      pickup: 'Padrão da empresa',
-      restrictions: '',
-    })),
+    disabledCategories: [],
+    categories: [],
+    products: catalogue.map(([id]) => {
+      const definition = knowledgeCatalogue.find((item) => item.id === id);
+      return {
+        id,
+        state: 'Não configurado',
+        materials: [],
+        structures: [],
+        finishes: [],
+        applications: [],
+        variations: definition?.variations || [],
+        characteristics: definition?.characteristics || [],
+        environments: definition?.environments || [],
+        synonyms: definition?.synonyms || [],
+        popularTerms: definition?.popularTerms || [],
+        clientPhrases: definition?.clientPhrases || [],
+        keywords: definition?.keywords || [],
+        qualificationQuestions: definition?.qualificationQuestions || [],
+        relatedServices: definition?.relatedServices || [],
+        aiInstructions: definition?.aiInstructions || '',
+        art: 'Padrão da empresa',
+        installation: 'Padrão da empresa',
+        delivery: 'Padrão da empresa',
+        pickup: 'Padrão da empresa',
+        restrictions: '',
+      };
+    }),
     autoStart: '09:00',
     autoEnd: '17:00',
     autoDays: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'],
@@ -145,7 +129,25 @@ export function defaults(): Business {
   };
 }
 export function business(config: Config): Business {
-  return config.business || defaults();
+  const base = defaults();
+  if (!config.business) return base;
+  const saved = config.business;
+  const known = base.products.map((product) => {
+    const current = saved.products?.find((item) => item.id === product.id);
+    return current ? { ...product, ...current } : product;
+  });
+  const custom = (saved.products || []).filter(
+    (product) => !known.some((item) => item.id === product.id),
+  );
+  return {
+    ...base,
+    ...saved,
+    categories: Array.from(
+      new Set([...(base.categories || []), ...(saved.categories || [])]),
+    ),
+    disabledCategories: saved.disabledCategories || [],
+    products: [...known, ...custom],
+  };
 }
 export function allCatalogue(
   config: Config,
@@ -168,13 +170,23 @@ export function categories(config: Config) {
     ]),
   ];
 }
+export function categoryActive(config: Config, category: string) {
+  return !config.business?.disabledCategories?.includes(category);
+}
 export function guided(config: Config): Config {
   const b = business(config);
   return {
     ...config,
     business: b,
     offer: b.products
-      .filter((p) => p.state === 'Oferecemos')
+      .filter(
+        (p) =>
+          p.state === 'Oferecemos' &&
+          categoryActive(
+            config,
+            allCatalogue(config).find((c) => c[0] === p.id)?.[2] || '',
+          ),
+      )
       .map((p) => allCatalogue(config).find((c) => c[0] === p.id)?.[1])
       .join('\n'),
     excluded: b.products
@@ -242,6 +254,9 @@ export function relevantProducts(
       'projeto',
       'servico',
       'produto',
+      'minha',
+      'meu',
+      'algo',
     ]);
   const tokens = (value: string) =>
     normalize(value)
@@ -250,37 +265,90 @@ export function relevantProducts(
         word.length > 4 && word.endsWith('s') ? word.slice(0, -1) : word,
       )
       .filter((word) => word.length >= 3 && !ignored.has(word));
-  const frequencies = new Map<string, number>();
-  for (const [, name] of entries)
-    for (const word of new Set(tokens(name)))
-      frequencies.set(word, (frequencies.get(word) || 0) + 1);
+  const distance = (a: string, b: string) => {
+    if (Math.abs(a.length - b.length) > 1) return 2;
+    const row = Array.from({ length: b.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= a.length; i++) {
+      let previous = row[0];
+      row[0] = i;
+      for (let j = 1; j <= b.length; j++) {
+        const old = row[j];
+        row[j] = Math.min(
+          row[j] + 1,
+          row[j - 1] + 1,
+          previous + (a[i - 1] === b[j - 1] ? 0 : 1),
+        );
+        previous = old;
+      }
+    }
+    return row[b.length];
+  };
   const find = (value: string) => {
-    const wanted = new Set(tokens(value));
-    return b.products.filter((product) => {
-      const name = entries.find((entry) => entry[0] === product.id)?.[1] || '',
-        words = tokens(name),
-        hits = words.filter((word) => wanted.has(word));
-      return (
-        hits.length >= 2 || hits.some((word) => frequencies.get(word) === 1)
-      );
-    });
+    const normalized = normalize(value),
+      wanted = tokens(value);
+    const ranked = b.products
+      .map((product) => {
+        const entry = entries.find((item) => item[0] === product.id),
+          fields = [
+            entry?.[1] || '',
+            ...(product.synonyms || []),
+            ...(product.popularTerms || []),
+            ...(product.clientPhrases || []),
+            ...(product.keywords || []),
+            ...(product.variations || []),
+            ...(product.applications || []),
+          ],
+          phrases = fields.map(normalize).filter(Boolean),
+          words = Array.from(new Set(fields.flatMap(tokens)));
+        let score = phrases.reduce(
+          (best, phrase) =>
+            Math.max(
+              best,
+              phrase.length >= 5 &&
+                (normalized.includes(phrase) || phrase.includes(normalized))
+                ? 12 + Math.min(phrase.split(' ').length, 5)
+                : 0,
+            ),
+          0,
+        );
+        for (const word of wanted) {
+          if (words.includes(word)) score += 3;
+          else if (
+            word.length >= 5 &&
+            words.some((candidate) => distance(word, candidate) <= 1)
+          )
+            score += 1;
+        }
+        return { product, score };
+      })
+      .filter((item) => item.score >= 3)
+      .sort((a, b) => b.score - a.score);
+    const threshold = Math.max(3, (ranked[0]?.score || 3) - 2);
+    return ranked
+      .filter((item) => item.score >= threshold)
+      .map((item) => item.product);
   };
   let matched = find(question);
   if (!matched.length && lead?.productId)
     matched = b.products.filter((product) => product.id === lead.productId);
   if (!matched.length && lead?.service) matched = find(lead.service);
-  return matched.slice(0, 4).map((p) => ({
-    ...p,
-    name: allCatalogue(config).find((c) => c[0] === p.id)?.[1],
-    services: Object.fromEntries(
-      Object.keys(serviceLabels).map((k) => [
-        k,
-        p[k as keyof Product] === 'Padrão da empresa'
-          ? b[k as keyof Business]
-          : p[k as keyof Product],
-      ]),
-    ),
-  }));
+  return matched.slice(0, 5).map((p) => {
+    const entry = entries.find((item) => item[0] === p.id);
+    return {
+      ...p,
+      name: entry?.[1],
+      category: entry?.[2],
+      categoryActive: categoryActive(config, entry?.[2] || ''),
+      services: Object.fromEntries(
+        Object.keys(serviceLabels).map((k) => [
+          k,
+          p[k as keyof Product] === 'Padrão da empresa'
+            ? b[k as keyof Business]
+            : p[k as keyof Product],
+        ]),
+      ),
+    };
+  });
 }
 export function validateWorkspace(value: unknown): value is Workspace {
   const x = value as Workspace;
@@ -292,9 +360,19 @@ export function validateWorkspace(value: unknown): value is Workspace {
     !b ||
     !Array.isArray(b.products) ||
     b.products.length < catalogue.length ||
-    b.products.length > 100 ||
+    b.products.length > 400 ||
     new Set(b.products.map((p) => p.id)).size !== b.products.length ||
     catalogue.some((c) => !b.products.some((p) => p.id === c[0]))
+  )
+    return false;
+  if (
+    b.disabledCategories !== undefined &&
+    (!Array.isArray(b.disabledCategories) ||
+      b.disabledCategories.length > 30 ||
+      b.disabledCategories.some(
+        (category) =>
+          typeof category !== 'string' || !categories(c).includes(category),
+      ))
   )
     return false;
   if (
@@ -311,7 +389,7 @@ export function validateWorkspace(value: unknown): value is Workspace {
     b.products.some(
       (p) =>
         typeof p.id !== 'string' ||
-        p.id.length > 80 ||
+        p.id.length > 180 ||
         (!catalogue.some((a) => a[0] === p.id) &&
           (!p.id.startsWith('custom-') ||
             !p.name?.trim() ||
@@ -324,20 +402,32 @@ export function validateWorkspace(value: unknown): value is Workspace {
                 (k === 'description' ? 1000 : 100)),
         ) ||
         !productStates.includes(p.state) ||
-        !['materials', 'finishes', 'applications'].every(
+        ![
+          'materials',
+          'finishes',
+          'applications',
+          'structures',
+          'variations',
+          'characteristics',
+          'environments',
+          'synonyms',
+          'popularTerms',
+          'clientPhrases',
+          'keywords',
+          'qualificationQuestions',
+          'relatedServices',
+        ].every(
           (k) =>
-            Array.isArray(p[k as keyof Product]) &&
-            (p[k as keyof Product] as string[]).length <= 20 &&
-            (p[k as keyof Product] as string[]).every(
-              (v) => typeof v === 'string' && v.length <= 100,
-            ),
+            p[k as keyof Product] === undefined ||
+            (Array.isArray(p[k as keyof Product]) &&
+              (p[k as keyof Product] as string[]).length <= 40 &&
+              (p[k as keyof Product] as string[]).every(
+                (v) => typeof v === 'string' && v.length <= 300,
+              )),
         ) ||
-        (p.structures !== undefined &&
-          (!Array.isArray(p.structures) ||
-            p.structures.length > 20 ||
-            p.structures.some(
-              (v) => typeof v !== 'string' || v.length > 100,
-            ))) ||
+        (p.aiInstructions !== undefined &&
+          (typeof p.aiInstructions !== 'string' ||
+            p.aiInstructions.length > 2000)) ||
         typeof p.restrictions !== 'string' ||
         p.restrictions.length > 1000 ||
         !Object.keys(serviceLabels).every((k) =>
