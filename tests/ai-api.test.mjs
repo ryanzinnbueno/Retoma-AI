@@ -54,6 +54,7 @@ test('extension link activates, auto replies once, acknowledges delivery and pau
  const base={contactKey:'5511999999999',contactName:'Cliente teste',subject:'Fachada em ACM',consent:true,messages:[{role:'cliente',text:'Vocês trabalham com fachada em ACM?'}]};
  const makeRequest=body=>new Request('https://test.example/api/extension/chat',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+credentials.token},body:JSON.stringify(body)});
  let response=await extensionChat.POST(makeRequest({...base,mode:'activate'})),data=await response.json();assert.equal(response.status,200);assert.equal(data.active,true);
+ response=await extensionChat.POST(makeRequest({mode:'watchlist'}));data=await response.json();assert.equal(data.items[0].contactKey,base.contactKey);
  response=await extensionChat.POST(makeRequest({...base,mode:'auto',requestId:crypto.randomUUID()}));data=await response.json();assert.equal(response.status,200);assert.match(data.reply.text,/fachada/i);assert.ok(data.reply.parts.length>=2);const sentReply=data.reply.text,sentPart=data.reply.parts[0];
  let saved=await state.load(owner),lead=saved.data.leads.find(l=>l.externalId==='whatsapp-web:5511999999999');assert.equal(lead.service,'Fachada em ACM');assert.equal(lead.messages.at(-1).role,'cliente');assert.ok(!lead.messages.some(m=>m.role==='ia'));
  response=await extensionChat.POST(makeRequest({...base,mode:'sent',requestMessageId:data.reply.requestMessageId,messages:[...base.messages,{role:'vendedor',text:data.reply.text}]}));assert.equal(response.status,200);

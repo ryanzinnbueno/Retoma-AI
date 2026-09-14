@@ -1,4 +1,4 @@
-RETOMA PARA WHATSAPP WEB — BETA 0.7.0
+RETOMA PARA WHATSAPP WEB — BETA 0.7.1
 
 1. Abra chrome://extensions no Chrome.
 2. Ative o modo do desenvolvedor.
@@ -10,6 +10,8 @@ RETOMA PARA WHATSAPP WEB — BETA 0.7.0
 8. Revise as opções de acompanhamento, pausa, notificações, mensagens curtas, espera inicial e intervalo entre mensagens.
 
 Enquanto o Chrome e o WhatsApp Web estiverem abertos, a extensão verifica novas mensagens, solicita uma resposta à IA, mostra o estado de processamento, envia blocos curtos e sincroniza o contexto com a Central de Atendimento.
+
+A aba operadora consulta a lista de conversas ativas no Retoma e percorre essas conversas mesmo quando o WhatsApp não exibe o selo de mensagem não lida. Conversas novas continuam sendo identificadas pelo selo de não lida.
 
 Depois de assumir uma conversa, o vendedor também pode escrever pela Central do Retoma. A mensagem fica na fila até a extensão localizar a conversa no WhatsApp Web, enviar e confirmar a entrega no histórico.
 

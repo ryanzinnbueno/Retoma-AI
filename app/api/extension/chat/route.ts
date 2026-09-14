@@ -15,9 +15,13 @@ function newLead(data:{id:number;externalId:string;name:string;subject:string}):
 
 export async function OPTIONS(){return new Response(null,{status:204,headers:cors})}
 export async function POST(req:Request){let owner='',eventId='';try{
- owner=await authenticate(req);const body=await readBody(req);const mode=['status','activate','auto','sent','seller','pause','outbox'].includes(body.mode)?body.mode:'status';
+ owner=await authenticate(req);const body=await readBody(req);const mode=['status','activate','auto','sent','seller','pause','outbox','watchlist'].includes(body.mode)?body.mode:'status';
  if(mode==='outbox'){
   const snapshot=await load(owner),items=snapshot.data.leads.filter(lead=>lead.externalId?.startsWith('whatsapp-web:')&&lead.pendingExtensionReply).slice(0,10).map(lead=>({contactKey:lead.externalId!.slice('whatsapp-web:'.length),contactName:lead.name,pending:lead.pendingExtensionReply}));
+  return respond({items});
+ }
+ if(mode==='watchlist'){
+  const snapshot=await load(owner),items=snapshot.data.leads.filter(lead=>lead.externalId?.startsWith('whatsapp-web:')&&lead.ai&&!lead.optOut&&!terminal(lead)).map(lead=>({contactKey:lead.externalId!.slice('whatsapp-web:'.length),contactName:lead.name}));
   return respond({items});
  }
  if(typeof body.contactKey!=='string'||!body.contactKey.trim()||body.contactKey.length>200)throw new AppError(400,'Abra uma conversa válida no WhatsApp Web.');
