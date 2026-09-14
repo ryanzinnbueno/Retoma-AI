@@ -1,1 +1,39 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Retoma</title><link rel="stylesheet" href="popup.css"></head><body><main><header><img src="retoma-icon.png" alt=""><div><b>retoma</b><small>Acompanhamento inteligente</small></div><span>0.5</span></header><section class="hero"><small>SUA PRÓXIMA VENDA PODE ESTAR AQUI</small><h1>WhatsApp conectado ao seu atendimento.</h1><p>A IA acompanha novas mensagens, salva o contexto e chama o vendedor quando necessário.</p><div class="features"><span><i></i>Resposta automática</span><span><i></i>Resumo no Retoma</span><span><i></i>Pausa ao digitar</span></div></section><section class="connect"><label>Código de vínculo<input id="token" type="password" autocomplete="off" placeholder="Cole o código criado no Retoma"></label><label><input id="automatic" type="checkbox"> Acompanhar automaticamente novas conversas iniciadas pelo cliente</label><button id="save">Conectar e testar</button><button id="clear" class="quiet">Desconectar deste navegador</button><output id="status" aria-live="polite"></output></section><a class="open" id="open-dashboard" href="https://retoma-ai.vercel.app" target="_blank">Abrir central Retoma <span>↗</span></a><footer>Mantenha o Chrome e o WhatsApp Web abertos.</footer></main><script src="popup.js"></script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Retoma</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<main>
+  <header><img src="retoma-icon.png" alt=""><div><b>retoma</b><small>Acompanhamento inteligente</small></div><span>0.6</span></header>
+  <section class="hero">
+    <small>WHATSAPP WEB + RETOMA</small>
+    <h1>Atendimento sob seu controle.</h1>
+    <p>A IA só reage a mensagens recebidas do cliente e pausa quando o vendedor assume.</p>
+    <div class="features"><span><i></i>Sem respostas em loop</span><span><i></i>Histórico sincronizado</span><span><i></i>Alerta ao vendedor</span></div>
+  </section>
+  <section class="connect">
+    <div class="section-title"><b>Conexão</b><span id="connection-dot"></span></div>
+    <label>Código de vínculo<input id="token" type="password" autocomplete="off" placeholder="Cole o código criado no Retoma"></label>
+    <button id="save">Conectar e testar</button>
+    <button id="clear" class="quiet">Desconectar deste navegador</button>
+    <output id="result" aria-live="polite"></output>
+  </section>
+  <section class="settings" id="settings">
+    <div class="section-title"><b>Configurações deste WhatsApp</b><small>salvas no Chrome</small></div>
+    <label class="check"><input id="assistant-enabled" type="checkbox"><span><b>Respostas automáticas ligadas</b><small>Chave geral da IA neste navegador. Mensagens manuais do painel continuam disponíveis.</small></span></label>
+    <label class="check"><input id="automatic" type="checkbox"><span><b>Acompanhar novas conversas</b><small>Ativa quando a última mensagem foi recebida do cliente.</small></span></label>
+    <label class="check"><input id="pause-typing" type="checkbox"><span><b>Pausar quando eu digitar</b><small>Evita que vendedor e IA respondam juntos.</small></span></label>
+    <label class="check"><input id="notifications" type="checkbox"><span><b>Notificações do navegador</b><small>Avisa quando a conversa precisa do vendedor.</small></span></label>
+    <label class="check"><input id="blocks" type="checkbox"><span><b>Respostas em mensagens curtas</b><small>Divide respostas longas em blocos naturais.</small></span></label>
+    <label class="select-row"><span><b>Espera antes de responder</b><small>Dá tempo para o cliente terminar de escrever.</small></span><select id="delay"><option value="0">Sem espera</option><option value="2">2 segundos</option><option value="4">4 segundos</option><option value="7">7 segundos</option><option value="10">10 segundos</option></select></label>
+  </section>
+  <a class="open" id="open-dashboard" href="https://retoma-ai.vercel.app" target="_blank">Abrir Central Retoma <span>↗</span></a>
+  <footer>Mantenha esta aba do WhatsApp Web aberta.</footer>
+</main>
+<script src="popup.js"></script>
+</body>
+</html>

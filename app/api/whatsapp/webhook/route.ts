@@ -234,9 +234,11 @@ export async function POST(request: Request) {
     const raw = await request.arrayBuffer();
     if (raw.byteLength > 1_000_000) return new Response('Carga muito grande.', { status: 413 });
     if (!(await validSignature(raw, request.headers.get('x-hub-signature-256')))) return new Response('Assinatura inválida.', { status: 401, headers: noStore });
-    const queued: {owner:string;id:string}[] = [];
+    const queued: {owner:string;id:string}[] = [],extensionMode=new Map<string,boolean>();
     for (const item of extract(JSON.parse(new TextDecoder().decode(raw)))) {
       const connection=await connectionForNumber(item.phoneNumberId,item.wabaId);if(!connection)continue;const owner=connection.owner;
+      if(!extensionMode.has(owner)){const link=await db().prepare('SELECT 1 AS active FROM extension_links WHERE owner=? AND revoked=0').bind(owner).first<{active:number}>();extensionMode.set(owner,!!link);}
+      if(extensionMode.get(owner)){console.info('WhatsApp official webhook ignored because extension mode is active',owner);continue;}
       const existing = await db().prepare('SELECT status FROM events WHERE owner=? AND id=?').bind(owner, item.message.id).first<{ status: string }>();
       if (!existing) {
         await db().prepare("INSERT INTO events(owner,id,lead_id,request,status,created) VALUES(?,?,0,?,'queued',?)").bind(owner, item.message.id, JSON.stringify(item), Date.now()).run(); queued.push({owner,id:item.message.id});

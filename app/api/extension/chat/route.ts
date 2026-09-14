@@ -3,7 +3,7 @@ import {generate,mandatory} from '../../../server/gemini';
 import {validateDecision} from '../../../server/decisions';
 import {business} from '../../../business-model';
 import {cleanImportedMessages,lastImportedMessage,mergeImportedMessages} from '../../../extension-model';
-import {recordInterests,shortMessages} from '../../../conversation-tools';
+import {dedupeRepeatedText,recordInterests,shortMessages} from '../../../conversation-tools';
 import {terminal,type Lead} from '../../../recovery-model';
 
 const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, content-type','Access-Control-Allow-Methods':'POST, OPTIONS','Cache-Control':'no-store'};
@@ -36,7 +36,9 @@ export async function POST(req:Request){let owner='',eventId='';try{
   const messages=seller?lead.messages.map(message=>message.id===pending.requestMessageId?{...message,delivery:'sent' as const}:message):[...lead.messages,{id:'wa-ai-'+crypto.randomUUID(),role:'ia' as const,text:pending.text,provider:'Gemini',createdAt:at,delivery:'sent' as const}];
   const next:Lead={...lead,lastAutoReplyTo:seller?lead.lastAutoReplyTo:pending.requestMessageId,pendingExtensionReply:undefined,due:pending.stop?'Não contatar':lead.needsHuman?'Ação do vendedor · IA disponível':'Aguardando cliente',messages,history:[...lead.history,seller?'Mensagem do vendedor enviada pelo WhatsApp Web.':pending.stop?'Resposta final enviada e acompanhamento encerrado.':lead.needsHuman?'Resposta enviada; vendedor alertado e IA continua disponível.':'Resposta automática enviada pela extensão.']};snapshot.data.leads=snapshot.data.leads.map(l=>l.id===next.id?next:l);await commit(owner,snapshot.revision,snapshot.data);return respond({...state(next),acknowledged:true});
  }
- const cleaned=cleanImportedMessages(body.messages),items=lead?cleaned.filter(item=>!(item.role==='vendedor'&&lead!.messages.some(message=>message.role==='ia'&&message.delivery==='sent'&&message.text===item.text))):cleaned;if(!items.length)throw new AppError(400,'Nenhuma mensagem legível foi encontrada na conversa aberta.');
+ const cleaned=cleanImportedMessages(body.messages).map(item=>({...item,text:dedupeRepeatedText(item.text)}));
+ const alreadySent=new Set((lead?.messages||[]).filter(message=>message.role!=='cliente'&&message.delivery==='sent').map(message=>message.text.replace(/\s+/g,' ').trim()));
+ const items=lead?cleaned.filter(item=>!(item.role==='cliente'&&alreadySent.has(item.text.replace(/\s+/g,' ').trim()))&&!(item.role==='vendedor'&&lead!.messages.some(message=>message.role==='ia'&&message.delivery==='sent'&&message.text===item.text))):cleaned;if(!items.length)throw new AppError(400,'Nenhuma mensagem legível foi encontrada na conversa aberta.');
  if(!lead){if(body.consent!==true)throw new AppError(400,'Ative o acompanhamento antes de responder automaticamente.');if(snapshot.data.leads.length>=100)throw new AppError(409,'Limite de acompanhamentos atingido.');lead=newLead({id:Math.max(0,...snapshot.data.leads.map(l=>l.id))+1,externalId,name,subject:typeof body.subject==='string'?body.subject.trim().slice(0,160):''});snapshot.data.leads.push(lead);}
  if(lead.optOut||terminal(lead))throw new AppError(409,'Este acompanhamento está encerrado e não pode ser reativado pela extensão.');
  const at=new Date().toISOString(),before=lead.messages.length;lead=mergeImportedMessages(lead,items,at);lead={...lead,name,service:typeof body.subject==='string'&&body.subject.trim()?body.subject.trim().slice(0,160):lead.service,consent:true,status:'Conversando'};
