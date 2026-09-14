@@ -112,9 +112,10 @@ test('catalogue defaults unknown, guided config strips prompts, only approved kn
  assert.deepEqual(model.relevantProducts(s.config,'Preciso de algo para minha loja').map(p=>p.id),[]);
 });
 test('followup requires consent and may have no value/reference',async()=>{
- const s=await setup('optional');s.data.leads[0].value=null;s.data.leads[0].reference='';
+ const s=await setup('optional');s.data.leads[0].value=null;s.data.leads[0].reference='';s.data.leads[0].productId='acm';
+ const product=s.data.config.business.products.find(p=>p.id==='acm');product.materials=['ACM 3 mm'];product.structures=['Metalon galvanizado'];
  await state.save('optional',s.revision,s.data);
- globalThis.fetch=async()=>fake('Olá, sou assistente virtual. Ficou alguma dúvida?','reply');
+ globalThis.fetch=async(_url,options)=>{const body=JSON.parse(options.body);assert.match(body.system_instruction,/remarketing cordial/);assert.match(body.system_instruction,/Metalon galvanizado/);return fake('Olá, sou assistente virtual. Ficou alguma dúvida?','reply');};
  const r=await api.POST(req('optional',{...payload('Retome'),mode:'followup'}));assert.equal(r.status,200);
  const fresh=await state.load('optional');fresh.data.leads[0].consent=false;fresh.data.leads[0].ai=false;await state.save('optional',fresh.revision,fresh.data);
  assert.equal((await api.POST(req('optional',{...payload('Retome'),mode:'followup'}))).status,409);

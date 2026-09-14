@@ -1,64 +1,440 @@
-import { initialConfig, initialLeads, normalize, type Config, type Lead } from './recovery-model';
-export const availability=['Precisa confirmar','Disponível','Não disponível'] as const;
-export type Availability=typeof availability[number];
-export const productStates=['Não configurado','Oferecemos','Não oferecemos'] as const;
-export const catalogue=[
- ['acm','Fachadas em ACM','Fachadas','Revestimento e identificação de fachadas.'],
- ['letras','Letras-caixa','Fachadas','Identificação com letras em volume.'],
- ['luz','Identificação com iluminação','Fachadas','Identificação visual iluminada.'],
- ['banner','Banners','Impressão e sinalização','Peças impressas para comunicação visual.'],
- ['faixa','Faixas','Impressão e sinalização','Comunicação em formato de faixa.'],
- ['placa','Placas','Impressão e sinalização','Placas de identificação e informação.'],
- ['sinal','Sinalização interna','Impressão e sinalização','Orientação e identificação de ambientes.'],
- ['vitrine','Adesivos para vitrines','Adesivos','Aplicações em vitrines.'],
- ['parede','Adesivos para paredes','Adesivos','Aplicações em paredes.'],
- ['veiculo','Adesivos para veículos','Adesivos','Identificação e comunicação em veículos.'],
- ['piso','Adesivos para pisos','Adesivos','Aplicações em pisos.'],
- ['cartao','Cartões de visita','Outros impressos','Impressos para apresentação e contato.'],
- ['panfleto','Panfletos','Outros impressos','Impressos para divulgação.'],
+import {
+  initialConfig,
+  initialLeads,
+  normalize,
+  type Config,
+  type Lead,
+} from './recovery-model';
+export const availability = [
+  'Precisa confirmar',
+  'Disponível',
+  'Não disponível',
 ] as const;
-export type Product={id:string;name?:string;category?:string;description?:string;state:typeof productStates[number];materials:string[];finishes:string[];applications:string[];art:Availability|'Padrão da empresa';installation:Availability|'Padrão da empresa';delivery:Availability|'Padrão da empresa';pickup:Availability|'Padrão da empresa';restrictions:string};
-export type Business={categories?:string[];timezone:string;humanContact:string;humanDays:string;humanStart:string;humanEnd:string;art:Availability;installation:Availability;delivery:Availability;pickup:Availability;payments:string[];products:Product[];autoStart:string;autoEnd:string;autoDays:string[];paused:boolean;extraHandoff:string[]};
-export const serviceLabels={art:'Criação / ajuste de arte',installation:'Instalação',delivery:'Entrega',pickup:'Retirada'};
-export function defaults():Business{return {timezone:'America/Bahia',humanContact:'',humanDays:'Segunda a sexta',humanStart:'',humanEnd:'',art:'Precisa confirmar',installation:'Precisa confirmar',delivery:'Precisa confirmar',pickup:'Precisa confirmar',payments:[],products:catalogue.map(([id])=>({id,state:'Não configurado',materials:[],finishes:[],applications:[],art:'Padrão da empresa',installation:'Padrão da empresa',delivery:'Padrão da empresa',pickup:'Padrão da empresa',restrictions:''})),autoStart:'09:00',autoEnd:'17:00',autoDays:['Seg','Ter','Qua','Qui','Sex'],paused:false,extraHandoff:[]};}
-export function business(config:Config):Business{return config.business||defaults();}
-export function allCatalogue(config:Config):Array<readonly [string,string,string,string]>{return business(config).products.map(p=>{const base=catalogue.find(c=>c[0]===p.id);return [p.id,p.name||base?.[1]||'Serviço',p.category||base?.[2]||'Outros serviços',p.description??base?.[3]??''];});}
-export function categories(config:Config){return [...new Set([...allCatalogue(config).map(c=>c[2]),...(business(config).categories||[])])];}
-export function guided(config:Config):Config{
- const b=business(config);return {...config,business:b,
- offer:b.products.filter(p=>p.state==='Oferecemos').map(p=>allCatalogue(config).find(c=>c[0]===p.id)?.[1]).join('\n'),
- excluded:b.products.filter(p=>p.state==='Não oferecemos').map(p=>allCatalogue(config).find(c=>c[0]===p.id)?.[1]).join('\n'),
- objective:'Recuperar conversas autorizadas, esclarecer dúvidas e envolver o vendedor.',
- limits:'Não inventar informações nem prometer condições sem confirmação.',handoff:b.extraHandoff.join(', '),
- knowledge:[],priceHandoff:false,hours:b.humanStart&&b.humanEnd?b.humanDays+' · '+b.humanStart+'–'+b.humanEnd:'Não informado'};
+export type Availability = (typeof availability)[number];
+export const productStates = [
+  'Não configurado',
+  'Oferecemos',
+  'Não oferecemos',
+] as const;
+export const catalogue = [
+  [
+    'acm',
+    'Fachadas em ACM',
+    'Fachadas',
+    'Revestimento e identificação de fachadas.',
+  ],
+  ['letras', 'Letras-caixa', 'Fachadas', 'Identificação com letras em volume.'],
+  [
+    'luz',
+    'Identificação com iluminação',
+    'Fachadas',
+    'Identificação visual iluminada.',
+  ],
+  [
+    'banner',
+    'Banners',
+    'Impressão e sinalização',
+    'Peças impressas para comunicação visual.',
+  ],
+  [
+    'faixa',
+    'Faixas',
+    'Impressão e sinalização',
+    'Comunicação em formato de faixa.',
+  ],
+  [
+    'placa',
+    'Placas',
+    'Impressão e sinalização',
+    'Placas de identificação e informação.',
+  ],
+  [
+    'sinal',
+    'Sinalização interna',
+    'Impressão e sinalização',
+    'Orientação e identificação de ambientes.',
+  ],
+  ['vitrine', 'Adesivos para vitrines', 'Adesivos', 'Aplicações em vitrines.'],
+  ['parede', 'Adesivos para paredes', 'Adesivos', 'Aplicações em paredes.'],
+  [
+    'veiculo',
+    'Adesivos para veículos',
+    'Adesivos',
+    'Identificação e comunicação em veículos.',
+  ],
+  ['piso', 'Adesivos para pisos', 'Adesivos', 'Aplicações em pisos.'],
+  [
+    'cartao',
+    'Cartões de visita',
+    'Outros impressos',
+    'Impressos para apresentação e contato.',
+  ],
+  ['panfleto', 'Panfletos', 'Outros impressos', 'Impressos para divulgação.'],
+] as const;
+export type Product = {
+  id: string;
+  name?: string;
+  category?: string;
+  description?: string;
+  state: (typeof productStates)[number];
+  materials: string[];
+  structures?: string[];
+  finishes: string[];
+  applications: string[];
+  art: Availability | 'Padrão da empresa';
+  installation: Availability | 'Padrão da empresa';
+  delivery: Availability | 'Padrão da empresa';
+  pickup: Availability | 'Padrão da empresa';
+  restrictions: string;
+};
+export type Business = {
+  categories?: string[];
+  timezone: string;
+  humanContact: string;
+  humanDays: string;
+  humanStart: string;
+  humanEnd: string;
+  art: Availability;
+  installation: Availability;
+  delivery: Availability;
+  pickup: Availability;
+  payments: string[];
+  products: Product[];
+  autoStart: string;
+  autoEnd: string;
+  autoDays: string[];
+  paused: boolean;
+  extraHandoff: string[];
+};
+export const serviceLabels = {
+  art: 'Criação / ajuste de arte',
+  installation: 'Instalação',
+  delivery: 'Entrega',
+  pickup: 'Retirada',
+};
+export function defaults(): Business {
+  return {
+    timezone: 'America/Bahia',
+    humanContact: '',
+    humanDays: 'Segunda a sexta',
+    humanStart: '',
+    humanEnd: '',
+    art: 'Precisa confirmar',
+    installation: 'Precisa confirmar',
+    delivery: 'Precisa confirmar',
+    pickup: 'Precisa confirmar',
+    payments: [],
+    products: catalogue.map(([id]) => ({
+      id,
+      state: 'Não configurado',
+      materials: [],
+      structures: [],
+      finishes: [],
+      applications: [],
+      art: 'Padrão da empresa',
+      installation: 'Padrão da empresa',
+      delivery: 'Padrão da empresa',
+      pickup: 'Padrão da empresa',
+      restrictions: '',
+    })),
+    autoStart: '09:00',
+    autoEnd: '17:00',
+    autoDays: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'],
+    paused: false,
+    extraHandoff: [],
+  };
 }
-export type Workspace={config:Config;leads:Lead[]};
-export function seed():Workspace{
- const b=defaults();
- // Only unambiguous selections from the original fictitious company are carried over.
- for(const p of b.products){if(['acm','letras','luz'].includes(p.id))p.state='Oferecemos';if(['cartao','panfleto'].includes(p.id))p.state='Não oferecemos';}
- return {config:guided({...initialConfig,business:b}),leads:initialLeads.map((l,i)=>({...l,reference:String(1041+l.id),valueConfirmed:l.status==='Vendido',productId:null,recoveryPaused:false,messages:l.messages.map((m,j)=>({...m,id:'seed-'+i+'-'+j,delivery:'demo' as const}))}))};
+export function business(config: Config): Business {
+  return config.business || defaults();
 }
-export function relevantProducts(config:Config,question:string,lead?:Lead){
- const b=business(config),entries=allCatalogue(config),ignored=new Set(['para','como','com','sem','uma','umas','uns','por','sobre','quero','querendo','preciso','fazer','loja','projeto','servico','produto']);
- const tokens=(value:string)=>normalize(value).split(' ').map(word=>word.length>4&&word.endsWith('s')?word.slice(0,-1):word).filter(word=>word.length>=3&&!ignored.has(word));
- const frequencies=new Map<string,number>();for(const [,name] of entries)for(const word of new Set(tokens(name)))frequencies.set(word,(frequencies.get(word)||0)+1);
- const find=(value:string)=>{const wanted=new Set(tokens(value));return b.products.filter(product=>{const name=entries.find(entry=>entry[0]===product.id)?.[1]||'',words=tokens(name),hits=words.filter(word=>wanted.has(word));return hits.length>=2||hits.some(word=>frequencies.get(word)===1);});};
- let matched=find(question);
- if(!matched.length&&lead?.productId)matched=b.products.filter(product=>product.id===lead.productId);
- if(!matched.length&&lead?.service)matched=find(lead.service);
- return matched.slice(0,4).map(p=>({...p,name:allCatalogue(config).find(c=>c[0]===p.id)?.[1],
- services:Object.fromEntries(Object.keys(serviceLabels).map(k=>[k,p[k as keyof Product]==='Padrão da empresa'?b[k as keyof Business]:p[k as keyof Product]]))}));
+export function allCatalogue(
+  config: Config,
+): Array<readonly [string, string, string, string]> {
+  return business(config).products.map((p) => {
+    const base = catalogue.find((c) => c[0] === p.id);
+    return [
+      p.id,
+      p.name || base?.[1] || 'Serviço',
+      p.category || base?.[2] || 'Outros serviços',
+      p.description ?? base?.[3] ?? '',
+    ];
+  });
 }
-export function validateWorkspace(value:unknown):value is Workspace{
- const x=value as Workspace; if(!x||!x.config||!Array.isArray(x.leads)||x.leads.length>100)return false;
- const c=x.config,b=c.business;
- if(!b||!Array.isArray(b.products)||b.products.length<catalogue.length||b.products.length>100||new Set(b.products.map(p=>p.id)).size!==b.products.length||catalogue.some(c=>!b.products.some(p=>p.id===c[0])))return false;
- if(b.categories!==undefined&&(!Array.isArray(b.categories)||b.categories.length>30||b.categories.some(c=>typeof c!=='string'||!c.trim()||c.length>80)||new Set(b.categories.map(normalize)).size!==b.categories.length))return false;
- if(b.products.some(p=>typeof p.id!=='string'||p.id.length>80||(!catalogue.some(a=>a[0]===p.id)&&(!p.id.startsWith('custom-')||!p.name?.trim()||!p.category?.trim()))||['name','category','description'].some(k=>p[k as keyof Product]!==undefined&&(typeof p[k as keyof Product]!=='string'||String(p[k as keyof Product]).length>(k==='description'?1000:100)))||!productStates.includes(p.state)||!['materials','finishes','applications'].every(k=>Array.isArray(p[k as keyof Product])&&(p[k as keyof Product] as string[]).length<=20&&(p[k as keyof Product] as string[]).every(v=>typeof v==='string'&&v.length<=100))||typeof p.restrictions!=='string'||p.restrictions.length>1000||!Object.keys(serviceLabels).every(k=>[...availability,'Padrão da empresa'].includes(p[k as keyof Product] as any))))return false;
- if(!Object.keys(serviceLabels).every(k=>availability.includes(b[k as keyof Business] as any))||!Array.isArray(b.payments)||!Array.isArray(b.autoDays)||!Array.isArray(b.extraHandoff)||typeof b.paused!=='boolean')return false;
- if(!['company','assistant','region','tone'].every(k=>typeof c[k as keyof Config]==='string'&&String(c[k as keyof Config]).length<=300)||!['humanContact','humanDays','humanStart','humanEnd','autoStart','autoEnd','timezone'].every(k=>typeof b[k as keyof Business]==='string'&&String(b[k as keyof Business]).length<=300))return false;
- try{new Intl.DateTimeFormat('pt-BR',{timeZone:b.timezone})}catch{return false;}
- if(!Array.isArray(c.days)||c.days.length<1||c.days.length>5||c.days.some((d,i)=>!Number.isInteger(d)||d<1||d>90||(i>0&&d<=c.days[i-1])))return false;
- return new Set(x.leads.map(l=>l.id)).size===x.leads.length&&x.leads.every(l=>Number.isSafeInteger(l.id)&&l.id>0&&typeof l.name==='string'&&!!l.name.trim()&&l.name.length<=200&&(l.avatar===undefined||(typeof l.avatar==='string'&&l.avatar.length<=20000&&/^data:image\/(?:jpeg|png|webp);base64,/.test(l.avatar)))&&typeof l.service==='string'&&l.service.length<=300&&typeof l.notes==='string'&&l.notes.length<=6000&&['Parado','Conversando','Vendido','Encerrado'].includes(l.status)&&(l.value===null||(typeof l.value==='number'&&Number.isFinite(l.value)&&l.value>=0))&&typeof l.ai==='boolean'&&typeof l.consent==='boolean'&&typeof l.optOut==='boolean'&&Array.isArray(l.messages)&&l.messages.length<=200&&l.messages.every(m=>['cliente','vendedor','ia'].includes(m.role)&&typeof m.text==='string'&&m.text.length<=6000)&&Array.isArray(l.history)&&l.history.length<=300);
+export function categories(config: Config) {
+  return [
+    ...new Set([
+      ...allCatalogue(config).map((c) => c[2]),
+      ...(business(config).categories || []),
+    ]),
+  ];
+}
+export function guided(config: Config): Config {
+  const b = business(config);
+  return {
+    ...config,
+    business: b,
+    offer: b.products
+      .filter((p) => p.state === 'Oferecemos')
+      .map((p) => allCatalogue(config).find((c) => c[0] === p.id)?.[1])
+      .join('\n'),
+    excluded: b.products
+      .filter((p) => p.state === 'Não oferecemos')
+      .map((p) => allCatalogue(config).find((c) => c[0] === p.id)?.[1])
+      .join('\n'),
+    objective:
+      'Recuperar conversas autorizadas, esclarecer dúvidas e envolver o vendedor.',
+    limits: 'Não inventar informações nem prometer condições sem confirmação.',
+    handoff: b.extraHandoff.join(', '),
+    knowledge: [],
+    priceHandoff: false,
+    hours:
+      b.humanStart && b.humanEnd
+        ? b.humanDays + ' · ' + b.humanStart + '–' + b.humanEnd
+        : 'Não informado',
+  };
+}
+export type Workspace = { config: Config; leads: Lead[] };
+export function seed(): Workspace {
+  const b = defaults();
+  // Only unambiguous selections from the original fictitious company are carried over.
+  for (const p of b.products) {
+    if (['acm', 'letras', 'luz'].includes(p.id)) p.state = 'Oferecemos';
+    if (['cartao', 'panfleto'].includes(p.id)) p.state = 'Não oferecemos';
+  }
+  return {
+    config: guided({ ...initialConfig, business: b }),
+    leads: initialLeads.map((l, i) => ({
+      ...l,
+      reference: String(1041 + l.id),
+      valueConfirmed: l.status === 'Vendido',
+      productId: null,
+      recoveryPaused: false,
+      messages: l.messages.map((m, j) => ({
+        ...m,
+        id: 'seed-' + i + '-' + j,
+        delivery: 'demo' as const,
+      })),
+    })),
+  };
+}
+export function relevantProducts(
+  config: Config,
+  question: string,
+  lead?: Lead,
+) {
+  const b = business(config),
+    entries = allCatalogue(config),
+    ignored = new Set([
+      'para',
+      'como',
+      'com',
+      'sem',
+      'uma',
+      'umas',
+      'uns',
+      'por',
+      'sobre',
+      'quero',
+      'querendo',
+      'preciso',
+      'fazer',
+      'loja',
+      'projeto',
+      'servico',
+      'produto',
+    ]);
+  const tokens = (value: string) =>
+    normalize(value)
+      .split(' ')
+      .map((word) =>
+        word.length > 4 && word.endsWith('s') ? word.slice(0, -1) : word,
+      )
+      .filter((word) => word.length >= 3 && !ignored.has(word));
+  const frequencies = new Map<string, number>();
+  for (const [, name] of entries)
+    for (const word of new Set(tokens(name)))
+      frequencies.set(word, (frequencies.get(word) || 0) + 1);
+  const find = (value: string) => {
+    const wanted = new Set(tokens(value));
+    return b.products.filter((product) => {
+      const name = entries.find((entry) => entry[0] === product.id)?.[1] || '',
+        words = tokens(name),
+        hits = words.filter((word) => wanted.has(word));
+      return (
+        hits.length >= 2 || hits.some((word) => frequencies.get(word) === 1)
+      );
+    });
+  };
+  let matched = find(question);
+  if (!matched.length && lead?.productId)
+    matched = b.products.filter((product) => product.id === lead.productId);
+  if (!matched.length && lead?.service) matched = find(lead.service);
+  return matched.slice(0, 4).map((p) => ({
+    ...p,
+    name: allCatalogue(config).find((c) => c[0] === p.id)?.[1],
+    services: Object.fromEntries(
+      Object.keys(serviceLabels).map((k) => [
+        k,
+        p[k as keyof Product] === 'Padrão da empresa'
+          ? b[k as keyof Business]
+          : p[k as keyof Product],
+      ]),
+    ),
+  }));
+}
+export function validateWorkspace(value: unknown): value is Workspace {
+  const x = value as Workspace;
+  if (!x || !x.config || !Array.isArray(x.leads) || x.leads.length > 100)
+    return false;
+  const c = x.config,
+    b = c.business;
+  if (
+    !b ||
+    !Array.isArray(b.products) ||
+    b.products.length < catalogue.length ||
+    b.products.length > 100 ||
+    new Set(b.products.map((p) => p.id)).size !== b.products.length ||
+    catalogue.some((c) => !b.products.some((p) => p.id === c[0]))
+  )
+    return false;
+  if (
+    b.categories !== undefined &&
+    (!Array.isArray(b.categories) ||
+      b.categories.length > 30 ||
+      b.categories.some(
+        (c) => typeof c !== 'string' || !c.trim() || c.length > 80,
+      ) ||
+      new Set(b.categories.map(normalize)).size !== b.categories.length)
+  )
+    return false;
+  if (
+    b.products.some(
+      (p) =>
+        typeof p.id !== 'string' ||
+        p.id.length > 80 ||
+        (!catalogue.some((a) => a[0] === p.id) &&
+          (!p.id.startsWith('custom-') ||
+            !p.name?.trim() ||
+            !p.category?.trim())) ||
+        ['name', 'category', 'description'].some(
+          (k) =>
+            p[k as keyof Product] !== undefined &&
+            (typeof p[k as keyof Product] !== 'string' ||
+              String(p[k as keyof Product]).length >
+                (k === 'description' ? 1000 : 100)),
+        ) ||
+        !productStates.includes(p.state) ||
+        !['materials', 'finishes', 'applications'].every(
+          (k) =>
+            Array.isArray(p[k as keyof Product]) &&
+            (p[k as keyof Product] as string[]).length <= 20 &&
+            (p[k as keyof Product] as string[]).every(
+              (v) => typeof v === 'string' && v.length <= 100,
+            ),
+        ) ||
+        (p.structures !== undefined &&
+          (!Array.isArray(p.structures) ||
+            p.structures.length > 20 ||
+            p.structures.some(
+              (v) => typeof v !== 'string' || v.length > 100,
+            ))) ||
+        typeof p.restrictions !== 'string' ||
+        p.restrictions.length > 1000 ||
+        !Object.keys(serviceLabels).every((k) =>
+          [...availability, 'Padrão da empresa'].includes(
+            p[k as keyof Product] as any,
+          ),
+        ),
+    )
+  )
+    return false;
+  if (
+    !Object.keys(serviceLabels).every((k) =>
+      availability.includes(b[k as keyof Business] as any),
+    ) ||
+    !Array.isArray(b.payments) ||
+    !Array.isArray(b.autoDays) ||
+    !Array.isArray(b.extraHandoff) ||
+    typeof b.paused !== 'boolean'
+  )
+    return false;
+  if (
+    !['company', 'assistant', 'region', 'tone'].every(
+      (k) =>
+        typeof c[k as keyof Config] === 'string' &&
+        String(c[k as keyof Config]).length <= 300,
+    ) ||
+    ![
+      'humanContact',
+      'humanDays',
+      'humanStart',
+      'humanEnd',
+      'autoStart',
+      'autoEnd',
+      'timezone',
+    ].every(
+      (k) =>
+        typeof b[k as keyof Business] === 'string' &&
+        String(b[k as keyof Business]).length <= 300,
+    )
+  )
+    return false;
+  try {
+    new Intl.DateTimeFormat('pt-BR', { timeZone: b.timezone });
+  } catch {
+    return false;
+  }
+  if (
+    !Array.isArray(c.days) ||
+    c.days.length < 1 ||
+    c.days.length > 5 ||
+    c.days.some(
+      (d, i) =>
+        !Number.isInteger(d) ||
+        d < 1 ||
+        d > 90 ||
+        (i > 0 && d <= c.days[i - 1]),
+    )
+  )
+    return false;
+  return (
+    new Set(x.leads.map((l) => l.id)).size === x.leads.length &&
+    x.leads.every(
+      (l) =>
+        Number.isSafeInteger(l.id) &&
+        l.id > 0 &&
+        typeof l.name === 'string' &&
+        !!l.name.trim() &&
+        l.name.length <= 200 &&
+        (l.nameEdited === undefined || typeof l.nameEdited === 'boolean') &&
+        (l.city === undefined ||
+          (typeof l.city === 'string' && l.city.length <= 120)) &&
+        (l.avatar === undefined ||
+          (typeof l.avatar === 'string' &&
+            l.avatar.length <= 20000 &&
+            /^data:image\/(?:jpeg|png|webp);base64,/.test(l.avatar))) &&
+        typeof l.service === 'string' &&
+        l.service.length <= 300 &&
+        typeof l.notes === 'string' &&
+        l.notes.length <= 6000 &&
+        ['Parado', 'Conversando', 'Vendido', 'Encerrado'].includes(l.status) &&
+        (l.value === null ||
+          (typeof l.value === 'number' &&
+            Number.isFinite(l.value) &&
+            l.value >= 0)) &&
+        typeof l.ai === 'boolean' &&
+        typeof l.consent === 'boolean' &&
+        typeof l.optOut === 'boolean' &&
+        Array.isArray(l.messages) &&
+        l.messages.length <= 200 &&
+        l.messages.every(
+          (m) =>
+            ['cliente', 'vendedor', 'ia'].includes(m.role) &&
+            typeof m.text === 'string' &&
+            m.text.length <= 6000,
+        ) &&
+        Array.isArray(l.history) &&
+        l.history.length <= 300,
+    )
+  );
 }

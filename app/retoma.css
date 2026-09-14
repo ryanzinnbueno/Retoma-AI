@@ -11,3 +11,9 @@
 /* Login used by the Vercel frontend; product data remains in Cloudflare D1. */
 .login-shell{min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 15% 10%,#d9efc7 0,transparent 38%),linear-gradient(145deg,#f7faf5,#e8f2e9)}
 .login-card{width:min(440px,100%);padding:36px;border:1px solid #d3e4d2;border-radius:24px;background:#ffffffed;box-shadow:0 24px 70px #163c3020}.login-card>img{width:170px;height:auto;margin-bottom:28px}.login-card>span{display:block;color:#57804f;font-size:12px;font-weight:800;letter-spacing:.12em}.login-card h1{margin:8px 0 8px;color:#153f31;font-size:32px}.login-card>p{margin:0 0 24px;color:#607268}.login-card label{display:grid;gap:8px;color:#315344;font-size:13px;font-weight:700}.login-card input{height:48px;border:1px solid #cbdccf;border-radius:12px;padding:0 14px;font:inherit;outline:none}.login-card input:focus{border-color:#2d7d59;box-shadow:0 0 0 3px #2d7d5918}.login-card button{width:100%;height:48px;margin-top:14px;border:0;border-radius:12px;background:#1f6c4b;color:#fff;font-weight:800;cursor:pointer}.login-card form>p{color:#a14335;font-size:13px}
+
+/* Paleta única do produto: branco, verde profundo e verde claro. */
+.retoma-shell .pulse-icon.amber,.retoma-shell .pulse-icon.purple,.retoma-shell .pill.amber,.retoma-shell .pill.status-0,.retoma-shell .pill.status-1,.retoma-shell .summary-attention,.retoma-shell .inline-tip.amber,.retoma-shell .handoff-banner{background:#edf5e9;color:#3f704f;border-color:#d6e6d5}
+.retoma-shell .bar-0,.retoma-shell .bar-1,.retoma-shell .bar-2,.retoma-shell .bar-3{background:#5f9873}
+.retoma-shell .conversation-edit{color:#477659}.retoma-shell .conversation-edit:hover{background:#edf5e9!important;color:#1f6849}
+.retoma-shell input,.retoma-shell textarea,.retoma-shell select{background:#fff;color:#244c39}
