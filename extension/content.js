@@ -14,9 +14,27 @@
   const name=values.find(v=>v.length>1);if(!name)return null;
   return {name,key:normal(name).slice(0,200)};
  }
- function bubbleFor(seed){return seed.closest('.message-in, .message-out')||seed.closest('[data-testid="msg-container"]')||seed;}
- function bubbleRole(node){const directional=node.matches?.('.message-in,.message-out')?node:node.closest?.('.message-in,.message-out');if(directional?.classList.contains('message-out'))return 'vendedor';if(directional?.classList.contains('message-in'))return 'cliente';const id=node.getAttribute?.('data-id')||node.querySelector?.('[data-id]')?.getAttribute('data-id')||'';if(/^true_|_true_/.test(id))return 'vendedor';if(/^false_|_false_/.test(id))return 'cliente';const pre=node.querySelector?.('[data-pre-plain-text]')?.getAttribute('data-pre-plain-text')||node.getAttribute?.('data-pre-plain-text')||'';if(/\]\s*(Você|You):/i.test(pre))return 'vendedor';return null;}
- function bubbleText(node){let candidates=[...node.querySelectorAll('.selectable-text')].filter(e=>!e.parentElement?.closest('.selectable-text'));if(!candidates.length)candidates=[...node.querySelectorAll('[data-testid="msg-text"]')].filter(e=>!e.parentElement?.closest('[data-testid="msg-text"]'));const pieces=candidates.map(e=>e.textContent?.trim()).filter(Boolean);if(pieces.length)return [...new Set(pieces)].join('\n').trim();const pre=node.matches?.('[data-pre-plain-text]')?node:node.querySelector?.('[data-pre-plain-text]');return pre?.textContent?.trim()||'';}
+ function bubbleFor(seed){return seed.closest('.message-in, .message-out')||seed.closest('[data-id]')||seed.closest('[data-testid="msg-container"]')||seed;}
+ function bubbleRole(node){
+  const directional=(node.matches?.('.message-in,.message-out')?node:null)||node.closest?.('.message-in,.message-out')||node.querySelector?.('.message-in,.message-out');
+  if(directional?.classList.contains('message-out'))return 'vendedor';if(directional?.classList.contains('message-in'))return 'cliente';
+  const id=node.getAttribute?.('data-id')||node.closest?.('[data-id]')?.getAttribute('data-id')||node.querySelector?.('[data-id]')?.getAttribute('data-id')||'';
+  if(/^(true|1)_|_(true|1)_/.test(id))return 'vendedor';if(/^(false|0)_|_(false|0)_/.test(id))return 'cliente';
+  if(node.querySelector?.('[data-icon="tail-out"],[data-testid*="outgoing" i],[data-testid*="msg-out" i]'))return 'vendedor';
+  if(node.querySelector?.('[data-icon="tail-in"],[data-testid*="incoming" i],[data-testid*="msg-in" i]'))return 'cliente';
+  const pre=node.querySelector?.('[data-pre-plain-text]')?.getAttribute('data-pre-plain-text')||node.getAttribute?.('data-pre-plain-text')||'';
+  if(/\]\s*(Você|You):/i.test(pre))return 'vendedor';if(/^\[[^\]]+\]\s*[^:]+:/i.test(pre))return 'cliente';
+  const main=document.querySelector('#main'),rect=node.getBoundingClientRect?.(),mainRect=main?.getBoundingClientRect?.();
+  if(rect?.width&&mainRect?.width){const center=rect.left+rect.width/2,mid=mainRect.left+mainRect.width/2,margin=mainRect.width*.06;if(center<mid-margin)return 'cliente';if(center>mid+margin)return 'vendedor';}
+  return null;
+ }
+ function bubbleText(node){
+  const selectors='.selectable-text,[data-testid="msg-text"],[data-lexical-text="true"]',elements=[...(node.matches?.(selectors)?[node]:[]),...node.querySelectorAll(selectors)];
+  if(!elements.length)elements.push(...node.querySelectorAll('[dir="auto"],[dir="ltr"]'));
+  const unique=[...new Set(elements.map(element=>element.textContent?.replace(/\s+/g,' ').trim()).filter(text=>text&&!/^\d{1,2}:\d{2}$/.test(text)))];
+  const pieces=unique.filter((text,index)=>!unique.some((other,otherIndex)=>otherIndex!==index&&other.length>text.length&&other.includes(text)));
+  if(pieces.length)return pieces.join('\n').trim();const pre=node.matches?.('[data-pre-plain-text]')?node:node.querySelector?.('[data-pre-plain-text]');return pre?.textContent?.replace(/\s+/g,' ').trim()||'';
+ }
  function transcript(){
   const main=document.querySelector('#main');if(!main)return [];
   const seeds=[...main.querySelectorAll('.message-in, .message-out, [data-testid="msg-container"], [data-pre-plain-text], [data-id]')],nodes=[...new Set(seeds.map(bubbleFor))],items=[];
@@ -42,7 +60,7 @@
   body.innerHTML=error+`<section class="retoma-start"><span class="retoma-step">01</span><h2>Ativar nesta conversa</h2><p>A IA responderá automaticamente usando produtos, regras e respostas ensinadas no Retoma.</p><label>Assunto do orçamento<input id="retoma-subject" maxlength="160" value="${escape(runtime.service||'')}" placeholder="Ex.: fachada em ACM"></label><label class="retoma-check"><input id="retoma-consent" type="checkbox"><span>Confirmo que este contato autorizou o atendimento e o uso desta conversa.</span></label><button id="retoma-activate" class="retoma-primary">Acompanhar com IA</button></section><div class="retoma-tip"><b>Você mantém o controle</b><p>Se o vendedor começar a digitar ou clicar em assumir, a IA pausa imediatamente.</p></div>`;
   body.querySelector('#retoma-activate')?.addEventListener('click',activate);
  }
- function openPanel(){let panel=document.querySelector('#retoma-panel');if(panel){panel.remove();document.querySelector('#retoma-launcher').hidden=false;return;}runtime.renderKey='';panel=document.createElement('aside');panel.id='retoma-panel';panel.innerHTML=`<header><img src="${icon}" alt="Símbolo Retoma"><div><b>retoma</b><small id="retoma-contact">Abra uma conversa</small></div><button type="button" aria-label="Fechar">×</button></header><div class="retoma-panel-body"><div class="retoma-status" id="retoma-status">Conectando…</div><div id="retoma-dynamic"></div><a class="retoma-dashboard" href="${escape(runtime.dashboardUrl||'https://retoma-ai.vercel.app')}" target="_blank">Abrir central de atendimento <span>↗</span></a><footer><span></span>Versão 0.6 · mantenha esta aba aberta</footer></div>`;document.body.appendChild(panel);document.querySelector('#retoma-launcher').hidden=true;panel.querySelector('header button').onclick=openPanel;render();}
+ function openPanel(){let panel=document.querySelector('#retoma-panel');if(panel){panel.remove();document.querySelector('#retoma-launcher').hidden=false;return;}runtime.renderKey='';panel=document.createElement('aside');panel.id='retoma-panel';panel.innerHTML=`<header><img src="${icon}" alt="Símbolo Retoma"><div><b>retoma</b><small id="retoma-contact">Abra uma conversa</small></div><button type="button" aria-label="Fechar">×</button></header><div class="retoma-panel-body"><div class="retoma-status" id="retoma-status">Conectando…</div><div id="retoma-dynamic"></div><a class="retoma-dashboard" href="${escape(runtime.dashboardUrl||'https://retoma-ai.vercel.app')}" target="_blank">Abrir central de atendimento <span>↗</span></a><footer><span></span>Versão 0.6.1 · mantenha esta aba aberta</footer></div>`;document.body.appendChild(panel);document.querySelector('#retoma-launcher').hidden=true;panel.querySelector('header button').onclick=openPanel;render();}
  async function hydrate(force=false){
   const current=identity();if(!current){runtime.contactKey='';runtime.contactName='';runtime.active=false;runtime.tracked=false;runtime.ready=false;render();return;}
   if(!force&&current.key===runtime.contactKey&&runtime.ready)return;

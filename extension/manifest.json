@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Retoma — Assistente para WhatsApp Web",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Conecta o WhatsApp Web à Central Retoma com controles de resposta, pausa e notificações.",
   "permissions": ["storage", "clipboardWrite", "notifications"],
   "host_permissions": ["https://retoma-ai.rogerio-ryan4057.workers.dev/*"],
