@@ -40,8 +40,13 @@ export function seed():Workspace{
  return {config:guided({...initialConfig,business:b}),leads:initialLeads.map((l,i)=>({...l,reference:String(1041+l.id),valueConfirmed:l.status==='Vendido',productId:null,recoveryPaused:false,messages:l.messages.map((m,j)=>({...m,id:'seed-'+i+'-'+j,delivery:'demo' as const}))}))};
 }
 export function relevantProducts(config:Config,question:string,lead?:Lead){
- const b=business(config),text=normalize(question+' '+(lead?.service||''));
- const matched=b.products.filter(p=>p.id===lead?.productId||allCatalogue(config).find(c=>c[0]===p.id)?.[1].split(' ').some(w=>w.length>3&&text.includes(normalize(w))));
+ const b=business(config),entries=allCatalogue(config),ignored=new Set(['para','como','com','sem','uma','umas','uns','por','sobre','quero','querendo','preciso','fazer','loja','projeto','servico','produto']);
+ const tokens=(value:string)=>normalize(value).split(' ').map(word=>word.length>4&&word.endsWith('s')?word.slice(0,-1):word).filter(word=>word.length>=3&&!ignored.has(word));
+ const frequencies=new Map<string,number>();for(const [,name] of entries)for(const word of new Set(tokens(name)))frequencies.set(word,(frequencies.get(word)||0)+1);
+ const find=(value:string)=>{const wanted=new Set(tokens(value));return b.products.filter(product=>{const name=entries.find(entry=>entry[0]===product.id)?.[1]||'',words=tokens(name),hits=words.filter(word=>wanted.has(word));return hits.length>=2||hits.some(word=>frequencies.get(word)===1);});};
+ let matched=find(question);
+ if(!matched.length&&lead?.productId)matched=b.products.filter(product=>product.id===lead.productId);
+ if(!matched.length&&lead?.service)matched=find(lead.service);
  return matched.slice(0,4).map(p=>({...p,name:allCatalogue(config).find(c=>c[0]===p.id)?.[1],
  services:Object.fromEntries(Object.keys(serviceLabels).map(k=>[k,p[k as keyof Product]==='Padrão da empresa'?b[k as keyof Business]:p[k as keyof Product]]))}));
 }

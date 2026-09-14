@@ -2,13 +2,17 @@ import {business,relevantProducts} from '../business-model';
 import {normalize,type Config,type Lead} from '../recovery-model';
 import type {Decision} from './gemini';
 export function validateDecision(config:Config,lead:Lead,question:string,result:Decision):Decision{
- if(result.action==='stop'||result.action==='handoff')return result;
+ if(result.action==='stop')return result;
  const q=normalize(question);const first=!lead.messages.some(m=>m.role==='ia'&&m.provider==='Gemini');
  const intro=first?'Olá, sou '+config.assistant+', assistente virtual da '+config.company+'. ':'';
- const products=relevantProducts(config,question).filter(p=>p.state!=='Oferecemos');
+ const relevant=relevantProducts(config,question),products=relevant.filter(p=>p.state!=='Oferecemos'),offered=relevant.filter(p=>p.state==='Oferecemos');
  let text='',reason='',action:Decision['action']='clarify';
+ if(offered.length===1&&/(quero|gostaria|preciso|querendo|faz|ofere|trabalh)/.test(q)&&!/(preco|valor|quanto|prazo|garanti|durabili|instala|desconto)/.test(q)){
+  text=`Sim, trabalhamos com ${offered[0].name}. Para entender melhor o projeto, você pode informar as medidas aproximadas e, se possível, enviar uma foto do local?`;
+  reason='Produto oferecido identificado na solicitação do cliente.';action='reply';
+ }
  if(products.length&&/faz|ofere|trabalh|tem|possivel|consegue|voces/.test(q)){
-  text=products.map(p=>p.state==='Não oferecemos'?'Não oferecemos '+p.name+'.':'Preciso confirmar com o vendedor se oferecemos '+p.name+'.').join(' ');
+  text=(text?text+' ':'')+products.map(p=>p.state==='Não oferecemos'?'Não oferecemos '+p.name+'.':'Preciso confirmar com o vendedor se oferecemos '+p.name+'.').join(' ');
   reason='Estado do catálogo validado pelo servidor; não presumir oferta.';
   action=products.some(p=>p.state==='Não configurado')?'handoff':'reply';
  }
@@ -22,4 +26,3 @@ export function validateDecision(config:Config,lead:Lead,question:string,result:
  }
  return text?{...result,text:intro+text,action,reason,summary:reason,references:[...result.references,'central:output-validation-v1']}:result;
 }
-
