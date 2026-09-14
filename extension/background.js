@@ -1,5 +1,6 @@
 const API='https://retoma-ai.rogerio-ryan4057.workers.dev';
 const whatsapp=url=>/^https:\/\/web\.whatsapp\.com(?:\/|$)/.test(url||'');
+const base64=buffer=>{const bytes=new Uint8Array(buffer);let value='';for(let offset=0;offset<bytes.length;offset+=32768)value+=String.fromCharCode(...bytes.subarray(offset,offset+32768));return btoa(value);};
 async function broadcastOperator(tabId){
  const tabs=await chrome.tabs.query({url:'https://web.whatsapp.com/*'});
  await Promise.all(tabs.filter(tab=>tab.id).map(tab=>chrome.tabs.sendMessage(tab.id,{type:'retoma-operator-changed',operator:tab.id===tabId}).catch(()=>{})));
@@ -9,6 +10,9 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
  if(message?.type==='retoma-notify'){
   chrome.notifications.create('retoma-'+Date.now(),{type:'basic',iconUrl:'retoma-icon.png',title:message.title||'Retoma precisa de você',message:message.message||'Um cliente pediu atendimento humano.',priority:2});
   sendResponse({ok:true});return;
+ }
+ if(message?.type==='retoma-avatar'){
+  (async()=>{const url=new URL(String(message.url||''));if(url.protocol!=='https:'||!/(^|\.)whatsapp\.net$/i.test(url.hostname))throw new Error('Foto indisponível.');const response=await fetch(url.href,{signal:AbortSignal.timeout(8000)});if(!response.ok)throw new Error('Foto indisponível.');const mime=(response.headers.get('content-type')||'').split(';')[0];if(!['image/jpeg','image/png','image/webp'].includes(mime))throw new Error('Formato de foto inválido.');const buffer=await response.arrayBuffer();if(buffer.byteLength>500000)throw new Error('Foto muito grande.');return `data:${mime};base64,${base64(buffer)}`;})().then(data=>sendResponse({ok:true,data})).catch(error=>sendResponse({ok:false,error:error.message}));return true;
  }
  if(message?.type==='retoma-operator-status'){
   (async()=>{const {automationTabId}=await chrome.storage.local.get('automationTabId'),tabId=sender.tab?.id||Number(message.tabId)||null;return {configured:!!automationTabId,operator:!!tabId&&automationTabId===tabId,automationTabId};})().then(data=>sendResponse({ok:true,data})).catch(error=>sendResponse({ok:false,error:error.message}));return true;

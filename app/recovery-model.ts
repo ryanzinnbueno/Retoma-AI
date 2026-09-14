@@ -5,7 +5,7 @@ export type PendingExtensionReply={requestMessageId:string;text:string;parts:str
 export type Lead = {
  events?:{id:string;at:string;status:Status;value:number|null;confirmed:boolean}[];
  interests?:{productId:string;evidence:string;messageId:string;at:string;kind:'mention'|'declared'}[];
- id: number; name: string; company: string; service: string; value: number|null; date: string; reference?:string; valueConfirmed?:boolean; productId?:string|null; recoveryPaused?:boolean; externalId?:string; lastAutoReplyTo?:string; pendingExtensionReply?:PendingExtensionReply;
+ id: number; name: string; avatar?:string; company: string; service: string; value: number|null; date: string; reference?:string; valueConfirmed?:boolean; productId?:string|null; recoveryPaused?:boolean; externalId?:string; lastAutoReplyTo?:string; pendingExtensionReply?:PendingExtensionReply;
  status: Status; ai: boolean; consent: boolean; optOut: boolean; due: string; attempts: number;
  aiSummary?: string; reason: string; needsHuman: boolean; notes: string; messages: Message[]; history: string[];
 };

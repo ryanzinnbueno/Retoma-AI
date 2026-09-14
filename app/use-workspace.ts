@@ -17,7 +17,8 @@ export function useWorkspace(){
    const s:any=await r.json();if(!r.ok){await reload();if(r.status===409&&retryConflict&&attempt===0)continue;throw Error(s.error||'Alterações não salvas.');}apply(s);break;
   }
  }).catch(e=>{setError(e.message);throw e;}).finally(()=>{savingRef.current=false;setSaving(false)});queue.current.catch(()=>{});}
+ async function removeLead(leadId:number){await queue.current.catch(()=>{});savingRef.current=true;setSaving(true);setError('');try{const r=await fetch('/api/conversation',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({leadId})}),snapshot:any=await r.json();if(!r.ok)throw Error(snapshot.error||'Não foi possível excluir a conversa.');apply(snapshot);return snapshot;}catch(e){setError(e instanceof Error?e.message:'Não foi possível excluir a conversa.');throw e;}finally{savingRef.current=false;setSaving(false)}}
  return {...state.data,ready,saving,error,reload,apply,flush:()=>queue.current,
  setLeads:(value:Lead[]|((ls:Lead[])=>Lead[]))=>mutate(d=>({...d,leads:typeof value==='function'?value(d.leads):value}),typeof value==='function'),
- setConfig:(config:Config)=>mutate(d=>({...d,config:guided({...config,version:d.config.version+1})}))};
+ setConfig:(config:Config)=>mutate(d=>({...d,config:guided({...config,version:d.config.version+1})})),removeLead};
 }

@@ -1,11 +1,11 @@
 (()=>{
  if(document.querySelector('#retoma-launcher'))return;
  const icon=chrome.runtime.getURL('retoma-icon.png');
- const runtime={contactKey:'',contactName:'',active:false,tracked:false,operator:false,busy:false,sending:false,ready:false,lastFingerprint:'',processedInbound:{},watchlist:[],lastWatchlist:0,scanCursor:0,summary:'',needsHuman:false,reason:'',pending:null,lastScan:0,lastStatus:0,lastOutbox:0,error:'',renderKey:'',notifiedKey:'',autoTriedKey:'',dashboardUrl:''};
+ const runtime={contactKey:'',contactName:'',active:false,tracked:false,operator:false,busy:false,sending:false,ready:false,lastFingerprint:'',processedInbound:{},watchlist:[],lastWatchlist:0,scanCursor:0,avatarSource:'',avatarData:'',summary:'',needsHuman:false,reason:'',pending:null,lastScan:0,lastStatus:0,lastOutbox:0,error:'',renderKey:'',notifiedKey:'',autoTriedKey:'',dashboardUrl:''};
  const escape=value=>String(value??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
  const normal=value=>String(value||'').replace(/\s+/g,' ').trim().toLocaleLowerCase('pt-BR');
  const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
- const api=payload=>new Promise((resolve,reject)=>chrome.runtime.sendMessage({type:'retoma-api',payload},response=>chrome.runtime.lastError||!response?.ok?reject(new Error(response?.error||chrome.runtime.lastError?.message||'Não foi possível consultar o Retoma.')):resolve(response.data)));
+ const api=async payload=>{const avatar=payload.contactKey?await contactAvatar():'';return new Promise((resolve,reject)=>chrome.runtime.sendMessage({type:'retoma-api',payload:{...payload,...(avatar?{avatar}:{})}},response=>chrome.runtime.lastError||!response?.ok?reject(new Error(response?.error||chrome.runtime.lastError?.message||'Não foi possível consultar o Retoma.')):resolve(response.data)));};
  const operatorStatus=()=>new Promise(resolve=>chrome.runtime.sendMessage({type:'retoma-operator-status'},response=>resolve(!!response?.data?.operator)));
  const genericHeader=/^(dados do perfil|profile details|clique para dados|click for contact|pesquisar|search|menu|online|digitando|typing|visto por último|last seen)$/i;
  function identity(){
@@ -15,6 +15,8 @@
   const name=values.find(v=>v.length>1);if(!name)return null;
   return {name,key:normal(name).slice(0,200)};
  }
+ function renderAvatar(source){return new Promise(resolve=>{const image=source instanceof HTMLImageElement?source:new Image(),draw=()=>{try{const size=64,canvas=document.createElement('canvas');canvas.width=size;canvas.height=size;const context=canvas.getContext('2d');if(!context)throw new Error();context.drawImage(image,0,0,size,size);const data=canvas.toDataURL('image/jpeg',.72);resolve(data.length<=20000?data:'');}catch{resolve('');}};if(source instanceof HTMLImageElement){if(source.complete&&source.naturalWidth)draw();else resolve('');}else{image.onload=draw;image.onerror=()=>resolve('');image.src=source;}});}
+ async function contactAvatar(){const image=document.querySelector('#main header img[src]');if(!(image instanceof HTMLImageElement)||!image.src)return '';if(runtime.avatarSource===image.src)return runtime.avatarData;runtime.avatarSource=image.src;runtime.avatarData=await renderAvatar(image);if(!runtime.avatarData&&/^https:\/\//.test(image.src)){const raw=await new Promise(resolve=>chrome.runtime.sendMessage({type:'retoma-avatar',url:image.src},response=>resolve(response?.ok?response.data:'')));if(raw)runtime.avatarData=await renderAvatar(raw);}return runtime.avatarData;}
  function bubbleFor(seed){return seed.closest('.message-in, .message-out')||seed.closest('[data-id]')||seed.closest('[data-testid="msg-container"]')||seed;}
  function bubbleRole(node){
   const directional=(node.matches?.('.message-in,.message-out')?node:null)||node.closest?.('.message-in,.message-out')||node.querySelector?.('.message-in,.message-out');
@@ -61,12 +63,12 @@
   body.innerHTML=error+`<section class="retoma-start"><span class="retoma-step">01</span><h2>Ativar nesta conversa</h2><p>A IA responderá automaticamente usando produtos, regras e respostas ensinadas no Retoma.</p><label>Assunto do orçamento<input id="retoma-subject" maxlength="160" value="${escape(runtime.service||'')}" placeholder="Ex.: fachada em ACM"></label><label class="retoma-check"><input id="retoma-consent" type="checkbox"><span>Confirmo que este contato autorizou o atendimento e o uso desta conversa.</span></label><button id="retoma-activate" class="retoma-primary">Acompanhar com IA</button></section><div class="retoma-tip"><b>Você mantém o controle</b><p>Se o vendedor começar a digitar ou clicar em assumir, a IA pausa imediatamente.</p></div>`;
   body.querySelector('#retoma-activate')?.addEventListener('click',activate);
  }
- function openPanel(){let panel=document.querySelector('#retoma-panel');if(panel){panel.remove();document.querySelector('#retoma-launcher').hidden=false;return;}runtime.renderKey='';panel=document.createElement('aside');panel.id='retoma-panel';panel.innerHTML=`<header><img src="${icon}" alt="Símbolo Retoma"><div><b>retoma</b><small id="retoma-contact">Abra uma conversa</small></div><button type="button" aria-label="Fechar">×</button></header><div class="retoma-panel-body"><div class="retoma-status" id="retoma-status">Conectando…</div><div id="retoma-dynamic"></div><a class="retoma-dashboard" href="${escape(runtime.dashboardUrl||'https://retoma-ai.vercel.app')}" target="_blank">Abrir central de atendimento <span>↗</span></a><footer><span></span>Versão 0.7.1 · mantenha esta aba aberta</footer></div>`;document.body.appendChild(panel);document.querySelector('#retoma-launcher').hidden=true;panel.querySelector('header button').onclick=openPanel;render();}
+ function openPanel(){let panel=document.querySelector('#retoma-panel');if(panel){panel.remove();document.querySelector('#retoma-launcher').hidden=false;return;}runtime.renderKey='';panel=document.createElement('aside');panel.id='retoma-panel';panel.innerHTML=`<header><img src="${icon}" alt="Símbolo Retoma"><div><b>retoma</b><small id="retoma-contact">Abra uma conversa</small></div><button type="button" aria-label="Fechar">×</button></header><div class="retoma-panel-body"><div class="retoma-status" id="retoma-status">Conectando…</div><div id="retoma-dynamic"></div><a class="retoma-dashboard" href="${escape(runtime.dashboardUrl||'https://retoma-ai.vercel.app')}" target="_blank">Abrir central de atendimento <span>↗</span></a><footer><span></span>Versão 0.7.2 · mantenha esta aba aberta</footer></div>`;document.body.appendChild(panel);document.querySelector('#retoma-launcher').hidden=true;panel.querySelector('header button').onclick=openPanel;render();}
  async function hydrate(force=false){
   const current=identity();if(!current){runtime.contactKey='';runtime.contactName='';runtime.active=false;runtime.tracked=false;runtime.ready=false;render();return;}
   if(!force&&current.key===runtime.contactKey&&runtime.ready)return;
-  if(current.key!==runtime.contactKey){runtime.renderKey='';runtime.error='';runtime.autoTriedKey='';}runtime.contactKey=current.key;runtime.contactName=current.name;runtime.ready=false;runtime.lastFingerprint=fingerprint(transcript());render();
-  try{const data=await api({mode:'status',contactKey:current.key,contactName:current.name});applyState(data);Object.assign(runtime,{ready:true,lastStatus:Date.now()});await remember(data.active,data.service||'');render();if(runtime.operator&&data.pending)await deliver(data.pending);else if(runtime.operator&&data.active&&transcript().at(-1)?.role==='cliente')void processCurrent();else if(runtime.operator&&!data.tracked)void maybeAutoActivate();}catch(e){runtime.ready=true;runtime.lastStatus=Date.now();showError(e.message);}
+  if(current.key!==runtime.contactKey){runtime.renderKey='';runtime.error='';runtime.autoTriedKey='';runtime.avatarSource='';runtime.avatarData='';}runtime.contactKey=current.key;runtime.contactName=current.name;runtime.ready=false;runtime.lastFingerprint=fingerprint(transcript());render();
+  try{const data=await api({mode:'status',contactKey:current.key,contactName:current.name});applyState(data);Object.assign(runtime,{ready:true,lastStatus:Date.now()});await remember(data.active,data.service||'');render();if(runtime.operator&&data.pending)await deliver(data.pending);else if(runtime.operator&&data.active&&transcript().at(-1)?.role==='cliente')await processCurrent();else if(runtime.operator&&!data.tracked)await maybeAutoActivate();}catch(e){runtime.ready=true;runtime.lastStatus=Date.now();showError(e.message);}
  }
  function showError(message){runtime.busy=false;runtime.error=message;runtime.renderKey='';render();}
  async function maybeAutoActivate(){
@@ -95,11 +97,24 @@
   const settings=await chrome.storage.local.get('autoActivateInbound');
   if(Date.now()-runtime.lastWatchlist>12000){try{runtime.watchlist=(await api({mode:'watchlist'})).items||[];runtime.lastWatchlist=Date.now();}catch{}}
   const local=Object.values(await stored()).filter(contact=>contact.active),watched=[...runtime.watchlist,...local];
-  const rows=[...document.querySelectorAll('#pane-side [role="listitem"], #pane-side [role="row"], #pane-side [data-testid="cell-frame-container"]')].map(row=>{const title=[...row.querySelectorAll('[title]')].map(element=>element.getAttribute('title')?.trim()).find(value=>value&&!/^\d{1,2}:\d{2}$/.test(value));const unread=row.querySelector('[aria-label*="não lida" i],[aria-label*="não lidas" i],[aria-label*="unread" i],[data-testid*="unread" i],[data-icon*="unread" i]')||[...row.querySelectorAll('span')].find(element=>/^\d{1,3}$/.test(element.textContent?.trim()||''));return {row,title,unread};}).filter(item=>item.title&&normal(item.title)!==runtime.contactKey);
-  const unread=rows.find(item=>item.unread&&settings.autoActivateInbound!==false),tracked=rows.filter(item=>watched.some(contact=>normal(contact.name)===normal(item.title)||normal(contact.contactName)===normal(item.title)||contact.contactKey===normal(item.title)));
-  const selected=unread||(tracked.length?tracked[runtime.scanCursor++%tracked.length]:null);
+  const rows=conversationRows().filter(item=>normal(item.title)!==runtime.contactKey);
+  const unread=rows.filter(item=>item.unread&&settings.autoActivateInbound!==false),tracked=rows.filter(item=>watched.some(contact=>normal(contact.name)===normal(item.title)||normal(contact.contactName)===normal(item.title)||contact.contactKey===normal(item.title)));
+  const candidates=unread.length?unread:tracked,selected=candidates.length?candidates[runtime.scanCursor++%candidates.length]:null;
   await chrome.storage.local.set({operatorHealth:{at:Date.now(),visibleRows:rows.length+1,trackedRows:tracked.length,unreadRows:rows.filter(item=>item.unread).length}});
-  if(!selected)return;selected.row.click();await wait(1400);await hydrate(true);
+   if(!selected)return;await openConversation(selected);
+ }
+ function conversationRows(){
+  const seen=new Set();return [...document.querySelectorAll('#pane-side [role="row"],#pane-side [role="listitem"],#pane-side [data-testid="cell-frame-container"]')].flatMap(row=>{
+   const label=row.querySelector('[data-testid="cell-frame-title"] [title],span[title][dir="auto"],span[title]');const title=label?.getAttribute('title')?.trim();if(!title||seen.has(normal(title)))return [];seen.add(normal(title));
+   const unread=!!row.querySelector('[aria-label*="não lida" i],[aria-label*="unread" i],[data-testid*="unread" i]')||[...row.querySelectorAll('span')].some(node=>!node.children.length&&/^\d{1,3}\+?$/.test(node.textContent?.trim()||'')&&!node.closest('[title]'));return [{row,title,label,unread}];
+  });
+ }
+ async function openConversation(item){
+  const target=item.label||item.row.querySelector('span[title]')||item.row;
+  target.scrollIntoView({block:'nearest'});
+  for(const type of ['pointerdown','mousedown','pointerup','mouseup','click'])target.dispatchEvent(type.startsWith('pointer')?new PointerEvent(type,{bubbles:true,pointerType:'mouse',button:0}):new MouseEvent(type,{bubbles:true,button:0}));
+  for(let attempt=0;attempt<20;attempt++){await wait(200);if(normal(identity()?.name)===normal(item.title)&&transcript().length){await hydrate(true);return true;}}
+  showError('Não consegui abrir a conversa de '+item.title+'. A varredura tentará novamente.');return false;
  }
  async function pollOutbox(){
   if(!runtime.operator||runtime.busy||runtime.sending||Date.now()-runtime.lastOutbox<5000)return false;runtime.lastOutbox=Date.now();
@@ -108,7 +123,7 @@
    if(runtime.contactKey===item.contactKey){await hydrate(true);return true;}
    const rows=[...document.querySelectorAll('#pane-side [role="listitem"], #pane-side [role="row"], #pane-side [data-testid="cell-frame-container"]')];
    const row=rows.find(candidate=>[...candidate.querySelectorAll('[title]')].some(element=>{const title=element.getAttribute('title')?.trim();return title&&(normal(title)===item.contactKey||normal(title)===normal(item.contactName));}));
-   if(!row)return false;row.click();await wait(1600);await hydrate(true);return true;
+   if(!row)return false;return await openConversation({row,title:item.contactName||item.contactKey});
   }catch{return false;}
  }
  const launcher=document.createElement('button');launcher.id='retoma-launcher';launcher.innerHTML=`<img src="${icon}" alt=""><span>Retoma</span><i></i>`;launcher.addEventListener('click',openPanel);document.body.appendChild(launcher);
@@ -118,5 +133,6 @@
  runtime.dashboardUrl='https://retoma-ai.vercel.app';
  chrome.runtime.onMessage.addListener(message=>{if(message?.type!=='retoma-operator-changed')return;runtime.operator=!!message.operator;runtime.renderKey='';render();if(runtime.operator)void tick();});
  async function boot(){runtime.operator=await operatorStatus();render();await hydrate(true);}
+ const runTick=tick;let tickRunning=false;tick=async()=>{if(tickRunning)return;tickRunning=true;try{await runTick();}catch(error){showError(error.message||'Falha na varredura.');}finally{tickRunning=false;}};
  setInterval(()=>void tick(),2200);void boot();
 })();

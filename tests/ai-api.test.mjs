@@ -27,6 +27,7 @@ const api=await import(await compile('app/api/ai/route.ts'));
 const extensionLink=await import(await compile('app/api/extension/link/route.ts'));
 const extensionChat=await import(await compile('app/api/extension/chat/route.ts'));
 const extensionOutbound=await import(await compile('app/api/extension/outbound/route.ts'));
+const conversation=await import(await compile('app/api/conversation/route.ts'));
 const state=await import(await compile('app/server/store.ts'));
 const model=await import(await compile('app/business-model.ts'));
 const knowledge=await import(await compile('app/server/knowledge.ts'));
@@ -36,6 +37,14 @@ const payload=(question='Vocês fazem instalação?')=>({leadId:1,question,messa
 const fake=(text='Vou confirmar as condições.',action='clarify')=>Response.json({status:'completed',steps:[{type:'model_output',content:[{type:'text',text:JSON.stringify({text,action,reason:'Precisa confirmar.',summary:'Cliente perguntou sobre instalação.'})}]}]});
 async function setup(owner){const s=await state.load(owner);s.data.leads[0].ai=true;s.data.leads[0].consent=true;return state.commit(owner,s.revision,s.data);}
 test.after(()=>{globalThis.fetch=originalFetch;sqlite.close();});
+test('conversation deletion is authenticated and isolated to its owner',async()=>{
+ await setup('delete-a');await setup('delete-b');
+ const request=owner=>new Request('https://test.example/api/conversation',{method:'DELETE',headers:{'content-type':'application/json',...(owner?{'oai-authenticated-user-id':owner}:{})},body:JSON.stringify({leadId:1})});
+ assert.equal((await conversation.DELETE(request(null))).status,401);
+ assert.equal((await conversation.DELETE(request('delete-a'))).status,200);
+ assert.ok(!(await state.load('delete-a')).data.leads.some(l=>l.id===1));
+ assert.ok((await state.load('delete-b')).data.leads.some(l=>l.id===1));
+});
 test('custom services and categories persist and reach the AI context without leaking tenants',async()=>{
  const s=await setup('custom');const base=structuredClone(s.data.config.business.products[0]);
  s.data.config.business.categories=['Manutenção'];s.data.config.business.products.push({...base,id:'custom-test',name:'Manutenção luminosa',category:'Manutenção',description:'Revisão de identificação luminosa',state:'Oferecemos'});
@@ -51,9 +60,10 @@ test('extension link activates, auto replies once, acknowledges delivery and pau
  const owner='extension-owner',linkRequest=new Request('https://test.example/api/extension/link',{method:'POST',headers:{'oai-authenticated-user-id':owner}});
  const linked=await extensionLink.POST(linkRequest),credentials=await linked.json();assert.equal(linked.status,200);assert.match(credentials.token,/^rtm_[a-f0-9]{64}$/);
  globalThis.fetch=async()=>fake('Claro! Trabalhamos com fachada em ACM. Posso entender melhor o seu projeto?','reply');
- const base={contactKey:'5511999999999',contactName:'Cliente teste',subject:'Fachada em ACM',consent:true,messages:[{role:'cliente',text:'Vocês trabalham com fachada em ACM?'}]};
+ const base={contactKey:'5511999999999',contactName:'Cliente teste',avatar:'data:image/jpeg;base64,YQ==',subject:'Fachada em ACM',consent:true,messages:[{role:'cliente',text:'Vocês trabalham com fachada em ACM?'}]};
  const makeRequest=body=>new Request('https://test.example/api/extension/chat',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+credentials.token},body:JSON.stringify(body)});
  let response=await extensionChat.POST(makeRequest({...base,mode:'activate'})),data=await response.json();assert.equal(response.status,200);assert.equal(data.active,true);
+ assert.equal((await state.load(owner)).data.leads.find(l=>l.externalId==='whatsapp-web:'+base.contactKey).avatar,base.avatar);
  response=await extensionChat.POST(makeRequest({mode:'watchlist'}));data=await response.json();assert.equal(data.items[0].contactKey,base.contactKey);
  response=await extensionChat.POST(makeRequest({...base,mode:'auto',requestId:crypto.randomUUID()}));data=await response.json();assert.equal(response.status,200);assert.match(data.reply.text,/fachada/i);assert.ok(data.reply.parts.length>=2);const sentReply=data.reply.text,sentPart=data.reply.parts[0];
  let saved=await state.load(owner),lead=saved.data.leads.find(l=>l.externalId==='whatsapp-web:5511999999999');assert.equal(lead.service,'Fachada em ACM');assert.equal(lead.messages.at(-1).role,'cliente');assert.ok(!lead.messages.some(m=>m.role==='ia'));

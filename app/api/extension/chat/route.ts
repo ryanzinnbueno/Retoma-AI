@@ -8,6 +8,7 @@ import {terminal,type Lead} from '../../../recovery-model';
 
 const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, content-type','Access-Control-Allow-Methods':'POST, OPTIONS','Cache-Control':'no-store'};
 const respond=(data:unknown,status=200)=>Response.json(data,{status,headers:cors});
+const avatar=(value:unknown)=>typeof value==='string'&&value.length<=20000&&/^data:image\/(?:jpeg|png|webp);base64,[a-zA-Z0-9+/=]+$/.test(value)?value:undefined;
 const hash=async(value:string)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value)))).map(b=>b.toString(16).padStart(2,'0')).join('');
 async function authenticate(req:Request){const match=req.headers.get('authorization')?.match(/^Bearer (rtm_[a-f0-9]{64})$/);if(!match)throw new AppError(401,'Vincule a extensão ao Retoma.');const row=await db().prepare('SELECT owner FROM extension_links WHERE token_hash=? AND revoked=0').bind(await hash(match[1])).first<{owner:string}>();if(!row)throw new AppError(401,'Vínculo inválido ou revogado.');await db().prepare('UPDATE extension_links SET last_used=? WHERE owner=?').bind(Date.now(),row.owner).run();return row.owner;}
 const state=(lead?:Lead)=>({tracked:!!lead,active:!!lead?.ai&&!lead?.optOut&&!terminal(lead),needsHuman:!!lead?.needsHuman,reason:lead?.reason||'',summary:lead?.aiSummary||'',status:lead?.status||'',service:lead?.service||'',pending:lead?.pendingExtensionReply||null});
@@ -26,12 +27,12 @@ export async function POST(req:Request){let owner='',eventId='';try{
  }
  if(typeof body.contactKey!=='string'||!body.contactKey.trim()||body.contactKey.length>200)throw new AppError(400,'Abra uma conversa válida no WhatsApp Web.');
  const name=typeof body.contactName==='string'&&body.contactName.trim()?body.contactName.trim().slice(0,200):body.contactKey.trim().slice(0,200),externalId='whatsapp-web:'+body.contactKey.trim();
- let snapshot=await load(owner),lead=snapshot.data.leads.find(l=>l.externalId===externalId);
- if(mode==='status')return respond(state(lead));
+ let snapshot=await load(owner),lead=snapshot.data.leads.find(l=>l.externalId===externalId),contactAvatar=avatar(body.avatar);
+ if(mode==='status'){if(lead&&contactAvatar&&lead.avatar!==contactAvatar){lead={...lead,avatar:contactAvatar};snapshot.data.leads=snapshot.data.leads.map(item=>item.id===lead!.id?lead!:item);snapshot=await commit(owner,snapshot.revision,snapshot.data);}return respond(state(lead));}
  if(mode==='pause'||mode==='seller'){
   if(!lead)throw new AppError(404,'Esta conversa ainda não está sendo acompanhada.');
   const items=cleanImportedMessages(body.messages);if(items.length)lead=mergeImportedMessages(lead,items,new Date().toISOString());
-  lead={...lead,ai:false,pendingExtensionReply:undefined,due:'Atendimento manual',history:[...lead.history,mode==='seller'?'Vendedor respondeu no WhatsApp Web. A IA foi pausada automaticamente.':'Vendedor pausou a IA pelo WhatsApp Web.']};
+  lead={...lead,...(contactAvatar?{avatar:contactAvatar}:{}),ai:false,pendingExtensionReply:undefined,due:'Atendimento manual',history:[...lead.history,mode==='seller'?'Vendedor respondeu no WhatsApp Web. A IA foi pausada automaticamente.':'Vendedor pausou a IA pelo WhatsApp Web.']};
   snapshot.data.leads=snapshot.data.leads.map(l=>l.id===lead!.id?lead!:l);await commit(owner,snapshot.revision,snapshot.data);return respond({...state(lead),paused:true});
  }
  if(mode==='sent'){
@@ -43,9 +44,9 @@ export async function POST(req:Request){let owner='',eventId='';try{
  const cleaned=cleanImportedMessages(body.messages).map(item=>({...item,text:dedupeRepeatedText(item.text)}));
  const alreadySent=new Set((lead?.messages||[]).filter(message=>message.role!=='cliente'&&message.delivery==='sent').flatMap(message=>[message.text,...conversationalMessages(message.text)]).map(text=>text.replace(/\s+/g,' ').trim()));
  const items=lead?cleaned.filter(item=>!(item.role==='cliente'&&alreadySent.has(item.text.replace(/\s+/g,' ').trim()))&&!(item.role==='vendedor'&&lead!.messages.some(message=>message.role==='ia'&&message.delivery==='sent'&&message.text===item.text))):cleaned;if(!items.length)throw new AppError(400,'Nenhuma mensagem legível foi encontrada na conversa aberta.');
- if(!lead){if(body.consent!==true)throw new AppError(400,'Ative o acompanhamento antes de responder automaticamente.');if(snapshot.data.leads.length>=100)throw new AppError(409,'Limite de acompanhamentos atingido.');lead=newLead({id:Math.max(0,...snapshot.data.leads.map(l=>l.id))+1,externalId,name,subject:typeof body.subject==='string'?body.subject.trim().slice(0,160):''});snapshot.data.leads.push(lead);}
+ if(!lead){if(body.consent!==true)throw new AppError(400,'Ative o acompanhamento antes de responder automaticamente.');if(snapshot.data.leads.length>=100)throw new AppError(409,'Limite de acompanhamentos atingido.');lead={...newLead({id:Math.max(0,...snapshot.data.leads.map(l=>l.id))+1,externalId,name,subject:typeof body.subject==='string'?body.subject.trim().slice(0,160):''}),...(contactAvatar?{avatar:contactAvatar}:{})};snapshot.data.leads.push(lead);}
  if(lead.optOut||terminal(lead))throw new AppError(409,'Este acompanhamento está encerrado e não pode ser reativado pela extensão.');
- const at=new Date().toISOString(),before=lead.messages.length;lead=mergeImportedMessages(lead,items,at);lead={...lead,name,service:typeof body.subject==='string'&&body.subject.trim()?body.subject.trim().slice(0,160):lead.service,consent:true,status:'Conversando'};
+ const at=new Date().toISOString(),before=lead.messages.length;lead=mergeImportedMessages(lead,items,at);lead={...lead,...(contactAvatar?{avatar:contactAvatar}:{}),name,service:typeof body.subject==='string'&&body.subject.trim()?body.subject.trim().slice(0,160):lead.service,consent:true,status:'Conversando'};
  if(mode==='activate')lead={...lead,ai:true,needsHuman:false,reason:'',due:'Aguardando cliente',history:[...lead.history,'Acompanhamento automático ativado no WhatsApp Web.']};
  snapshot.data.leads=snapshot.data.leads.map(l=>l.id===lead!.id?lead!:l);snapshot=await commit(owner,snapshot.revision,snapshot.data);
  if(mode==='activate')return respond({...state(lead),activated:true,imported:lead.messages.length-before});
