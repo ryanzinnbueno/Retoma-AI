@@ -125,33 +125,194 @@ function ListField({
   value,
   onChange,
   placeholder,
+  options,
 }: {
   label: string;
   value: string[];
   onChange: (value: string[]) => void;
   placeholder: string;
+  options: readonly string[];
 }) {
+  const [customOption, setCustomOption] = useState('');
+  const normalize = (item: string) => item.trim().toLocaleLowerCase('pt-BR');
+  const choices = [...value, ...options]
+    .filter(
+      (item, index, all) =>
+        item.trim() &&
+        all.findIndex(
+          (candidate) => normalize(candidate) === normalize(item),
+        ) === index,
+    )
+    .slice(0, 40);
+  const selected = (option: string) =>
+    value.some((item) => normalize(item) === normalize(option));
+  const toggle = (option: string, checked: boolean) => {
+    if (checked && !selected(option)) onChange([...value, option].slice(0, 40));
+    if (!checked)
+      onChange(value.filter((item) => normalize(item) !== normalize(option)));
+  };
+  const addCustomOption = () => {
+    const next = customOption.trim();
+    if (!next || selected(next) || value.length >= 40) return;
+    onChange([...value, next]);
+    setCustomOption('');
+  };
   return (
-    <label className="field">
-      {label}
-      <textarea
-        rows={2}
-        value={value.join(', ')}
-        placeholder={placeholder}
-        onChange={(event) =>
-          onChange(
-            event.target.value
-              .split(',')
-              .map((item) => item.trim())
-              .filter(Boolean)
-              .slice(0, 40),
-          )
-        }
-      />
-      <small>Separe as opções por vírgulas.</small>
-    </label>
+    <fieldset className="choice-field">
+      <legend>{label}</legend>
+      <div className="choice-options">
+        {choices.map((option) => (
+          <label key={option}>
+            <Checkbox
+              checked={selected(option)}
+              onCheckedChange={(checked) => toggle(option, checked === true)}
+            />
+            <span>{option}</span>
+          </label>
+        ))}
+      </div>
+      <details className="choice-custom">
+        <summary>Não encontrou? Adicionar outra opção</summary>
+        <div>
+          <input
+            value={customOption}
+            maxLength={120}
+            placeholder={placeholder}
+            onChange={(event) => setCustomOption(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                addCustomOption();
+              }
+            }}
+          />
+          <button type="button" className="btn" onClick={addCustomOption}>
+            Adicionar
+          </button>
+        </div>
+      </details>
+      <small>Marque somente as opções confirmadas pela empresa.</small>
+    </fieldset>
   );
 }
+const productChoiceOptions = {
+  materials: [
+    'ACM',
+    'Acrílico',
+    'Alumínio',
+    'Aço galvanizado',
+    'Aço inox',
+    'Chapa metálica',
+    'Lona',
+    'Vinil adesivo',
+    'PVC',
+    'PVC expandido',
+    'PS',
+    'MDF',
+    'Madeira',
+    'Policarbonato',
+    'LED',
+  ],
+  variations: [
+    'Iluminado',
+    'Sem iluminação',
+    'Frontal',
+    'Backlight',
+    'Efeito halo',
+    'Dupla face',
+    'Uso interno',
+    'Uso externo',
+    'Total',
+    'Parcial',
+    'Impresso',
+    'Recorte',
+    'Transparente',
+    'Perfurado',
+    'Jateado',
+    'Refletivo',
+  ],
+  characteristics: [
+    'Produção sob medida',
+    'Resistente ao uso externo',
+    'Estrutura personalizada',
+    'Iluminação em LED',
+    'Aplicação removível',
+    'Limpeza facilitada',
+    'Alta visibilidade',
+    'Uso promocional',
+    'Uso institucional',
+  ],
+  environments: [
+    'Fachada externa',
+    'Entrada de loja',
+    'Recepção',
+    'Ambiente interno',
+    'Ambiente externo',
+    'Vitrine',
+    'Vidro',
+    'Parede',
+    'Piso',
+    'Veículo',
+    'Evento',
+    'Ponto de venda',
+    'Escritório',
+    'Clínica',
+    'Restaurante',
+    'Hotel',
+    'Academia',
+    'Escola',
+    'Condomínio',
+    'Indústria',
+  ],
+  structures: [
+    'Metalon galvanizado',
+    'Estrutura de alumínio',
+    'Estrutura metálica',
+    'Base metálica',
+    'Fixação em parede',
+    'Fixação suspensa',
+    'Estrutura autoportante',
+    'Sem estrutura',
+  ],
+  finishes: [
+    'Recorte',
+    'Dobra',
+    'Pintura',
+    'Laminação',
+    'Polimento',
+    'Escovado',
+    'Brilhante',
+    'Fosco',
+    'Adesivado',
+    'Iluminado',
+    'Gravação',
+    'Impressão',
+  ],
+  applications: [
+    'Identificação de fachada',
+    'Revestimento',
+    'Sinalização',
+    'Decoração',
+    'Publicidade',
+    'Privacidade em vidro',
+    'Identificação de frota',
+    'Campanha promocional',
+    'Comunicação interna',
+    'Ponto de venda',
+  ],
+  qualificationQuestions: [
+    'Onde será instalado?',
+    'O uso é interno ou externo?',
+    'Qual é o tamanho aproximado?',
+    'Qual é a quantidade?',
+    'Deseja iluminação?',
+    'Já possui arte ou logotipo?',
+    'Pode enviar uma foto do local?',
+    'Pode enviar uma referência visual?',
+    'Precisa de instalação?',
+    'Qual é a data necessária?',
+  ],
+} as const;
 const mandatory = [
   'Não inventar informações.',
   'Não prometer condições sem confirmação.',
@@ -1052,12 +1213,14 @@ function ProductCatalogue({
                       value={editing.materials}
                       onChange={(materials) => update({ materials })}
                       placeholder="Ex.: ACM 3 mm, lona 440 g, vinil adesivo"
+                      options={productChoiceOptions.materials}
                     />
                     <ListField
                       label="Variações"
                       value={editing.variations || []}
                       onChange={(variations) => update({ variations })}
                       placeholder="Ex.: iluminado, sem iluminação, dupla face"
+                      options={productChoiceOptions.variations}
                     />
                     <ListField
                       label="Características técnicas confirmadas"
@@ -1066,30 +1229,35 @@ function ProductCatalogue({
                         update({ characteristics })
                       }
                       placeholder="Inclua somente características confirmadas pela empresa"
+                      options={productChoiceOptions.characteristics}
                     />
                     <ListField
                       label="Ambientes indicados"
                       value={editing.environments || []}
                       onChange={(environments) => update({ environments })}
                       placeholder="Ex.: fachada externa, recepção, vitrine"
+                      options={productChoiceOptions.environments}
                     />
                     <ListField
                       label="Estruturas"
                       value={editing.structures || []}
                       onChange={(structures) => update({ structures })}
                       placeholder="Ex.: metalon galvanizado, estrutura de alumínio"
+                      options={productChoiceOptions.structures}
                     />
                     <ListField
                       label="Acabamentos"
                       value={editing.finishes}
                       onChange={(finishes) => update({ finishes })}
                       placeholder="Ex.: recorte, dobra, pintura, laminação"
+                      options={productChoiceOptions.finishes}
                     />
                     <ListField
                       label="Aplicações atendidas"
                       value={editing.applications}
                       onChange={(applications) => update({ applications })}
                       placeholder="Ex.: fachada externa, recepção, vitrine"
+                      options={productChoiceOptions.applications}
                     />
                     <p>
                       Opções são possibilidades para confirmação, não garantias
@@ -1103,24 +1271,32 @@ function ProductCatalogue({
                       value={editing.synonyms || []}
                       onChange={(synonyms) => update({ synonyms })}
                       placeholder="Ex.: letra 3D, letra em relevo"
+                      options={editing.synonyms || []}
                     />
                     <ListField
                       label="Termos populares"
                       value={editing.popularTerms || []}
                       onChange={(popularTerms) => update({ popularTerms })}
                       placeholder="Ex.: letra saltada, placa que fica em pé"
+                      options={editing.popularTerms || []}
                     />
                     <ListField
                       label="Formas de pedir"
                       value={editing.clientPhrases || []}
                       onChange={(clientPhrases) => update({ clientPhrases })}
                       placeholder="Ex.: quero minha logo com luz atrás"
+                      options={editing.clientPhrases || []}
                     />
                     <ListField
                       label="Palavras-chave"
                       value={editing.keywords || []}
                       onChange={(keywords) => update({ keywords })}
                       placeholder="Ex.: fachada, ACM, revestimento"
+                      options={[
+                        editing.name || '',
+                        editing.category || '',
+                        ...(editing.keywords || []),
+                      ]}
                     />
                   </details>
                   <details open>
@@ -1132,6 +1308,7 @@ function ProductCatalogue({
                         update({ qualificationQuestions })
                       }
                       placeholder="Ex.: Onde será instalado? Qual o tamanho aproximado?"
+                      options={productChoiceOptions.qualificationQuestions}
                     />
                     <ListField
                       label="Serviços relacionados"
@@ -1140,6 +1317,14 @@ function ProductCatalogue({
                         update({ relatedServices })
                       }
                       placeholder="Ex.: letra caixa, adesivação de vitrine"
+                      options={entries
+                        .filter(
+                          (entry) =>
+                            entry[2] === editing.category &&
+                            entry[0] !== editing.id,
+                        )
+                        .map((entry) => entry[1])
+                        .slice(0, 24)}
                     />
                     <label className="field">
                       Instruções específicas para a IA
