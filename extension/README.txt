@@ -1,11 +1,13 @@
-RETOMA PARA WHATSAPP WEB — BETA 0.6.4
+RETOMA PARA WHATSAPP WEB — BETA 0.7.0
 
 1. Abra chrome://extensions no Chrome.
 2. Ative o modo do desenvolvedor.
 3. Clique em Carregar sem compactação e selecione esta pasta.
 4. No site Retoma, abra Configurações > WhatsApp e crie um código de vínculo.
 5. Abra a extensão, cole apenas esse código e clique em Conectar e testar.
-6. Revise as opções de acompanhamento, pausa, notificações, mensagens curtas, espera inicial e intervalo entre mensagens.
+6. Em um perfil do Chrome dedicado à automação, abra o WhatsApp Web e clique em Usar esta aba para automação.
+7. Mantenha essa aba operadora aberta. A atendente pode trabalhar em outro perfil do Chrome ou no WhatsApp Desktop.
+8. Revise as opções de acompanhamento, pausa, notificações, mensagens curtas, espera inicial e intervalo entre mensagens.
 
 Enquanto o Chrome e o WhatsApp Web estiverem abertos, a extensão verifica novas mensagens, solicita uma resposta à IA, mostra o estado de processamento, envia blocos curtos e sincroniza o contexto com a Central de Atendimento.
 

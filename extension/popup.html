@@ -8,7 +8,7 @@
 </head>
 <body>
 <main>
-  <header><img src="retoma-icon.png" alt=""><div><b>retoma</b><small>Acompanhamento inteligente</small></div><span>0.6.4</span></header>
+  <header><img src="retoma-icon.png" alt=""><div><b>retoma</b><small>Acompanhamento inteligente</small></div><span>0.7.0</span></header>
   <section class="hero">
     <small>WHATSAPP WEB + RETOMA</small>
     <h1>Atendimento sob seu controle.</h1>
@@ -21,6 +21,13 @@
     <button id="save">Conectar e testar</button>
     <button id="clear" class="quiet">Desconectar deste navegador</button>
     <output id="result" aria-live="polite"></output>
+  </section>
+  <section class="operator-card">
+    <div class="section-title"><b>Aba operadora</b><span id="operator-dot"></span></div>
+    <p>Esta é a aba que percorre as conversas não lidas e responde enquanto a atendente trabalha em outra janela.</p>
+    <button id="set-operator">Usar esta aba para automação</button>
+    <button id="clear-operator" class="quiet" hidden>Desativar modo operador</button>
+    <output id="operator-result" aria-live="polite"></output>
   </section>
   <section class="settings" id="settings">
     <div class="section-title"><b>Configurações deste WhatsApp</b><small>salvas no Chrome</small></div>
