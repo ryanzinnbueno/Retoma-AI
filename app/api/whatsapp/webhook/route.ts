@@ -209,7 +209,7 @@ async function processQueued(owner: string, eventId: string) {
       for (let index = 0; index < parts.length; index++) {
         if (index > 0) {
           await showTyping(connection,eventId).catch(() => {});
-          await delay(Math.min(1600, 650 + parts[index].length * 7));
+          await delay(Math.min(2800, 1000 + parts[index].length * 9));
         }
         await sendText(connection,item.message.from, parts[index]);
       }

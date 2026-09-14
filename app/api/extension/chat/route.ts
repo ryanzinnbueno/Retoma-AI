@@ -3,7 +3,7 @@ import {generate,mandatory} from '../../../server/gemini';
 import {validateDecision} from '../../../server/decisions';
 import {business} from '../../../business-model';
 import {cleanImportedMessages,lastImportedMessage,mergeImportedMessages} from '../../../extension-model';
-import {dedupeRepeatedText,recordInterests,shortMessages} from '../../../conversation-tools';
+import {conversationalMessages,dedupeRepeatedText,recordInterests} from '../../../conversation-tools';
 import {terminal,type Lead} from '../../../recovery-model';
 
 const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, content-type','Access-Control-Allow-Methods':'POST, OPTIONS','Cache-Control':'no-store'};
@@ -56,7 +56,7 @@ export async function POST(req:Request){let owner='',eventId='';try{
  const forced=mandatory(last.item.text),decision=forced||validateDecision(snapshot.data.config,lead,last.item.text,await generate(snapshot.data.config,lead,last.item.text,'reply'));
  const latest=await load(owner),current=latest.data.leads.find(l=>l.id===lead!.id);if(!current||!current.ai||business(latest.data.config).paused)throw new AppError(409,'A IA foi pausada antes de concluir a resposta.');
  const stop=decision.action==='stop',needsHuman=!stop&&(current.needsHuman||decision.action==='handoff'),reason=current.needsHuman?current.reason:(needsHuman?decision.reason:'');
- const pending={requestMessageId:last.id,text:decision.text,parts:shortMessages(decision.text),summary:decision.summary,needsHuman,reason,stop,createdAt:at,sender:'ia' as const};
+ const pending={requestMessageId:last.id,text:decision.text,parts:conversationalMessages(decision.text),summary:decision.summary,needsHuman,reason,stop,createdAt:at,sender:'ia' as const};
  const next:Lead={...current,ai:!stop,optOut:stop,recoveryPaused:stop||needsHuman,needsHuman,reason,status:stop?'Encerrado':'Conversando',due:stop?'Não contatar':needsHuman?'Ação do vendedor · IA disponível':'Enviando resposta',aiSummary:decision.summary,pendingExtensionReply:pending,history:[...current.history,stop?'Pedido de interrupção identificado pela extensão.':needsHuman?'Vendedor alertado; a IA segue disponível até ele assumir.':'Resposta automática preparada pela extensão.']};
  latest.data.leads=latest.data.leads.map(l=>l.id===next.id?next:l);await commit(owner,latest.revision,latest.data);await db().prepare("UPDATE events SET status='done',result=? WHERE owner=? AND id=?").bind(JSON.stringify({action:decision.action,messageId:last.id}),owner,eventId).run();return respond({...state(next),reply:pending,assistant:latest.data.config.assistant});
  }catch(e){if(owner&&eventId)await db().prepare("UPDATE events SET status='failed',result=? WHERE owner=? AND id=? AND status='processing'").bind(JSON.stringify({error:e instanceof AppError?e.status:500}),owner,eventId).run().catch(()=>{});return respond({error:e instanceof AppError?e.message:'Não foi possível preparar a resposta.'},e instanceof AppError?e.status:500)}}
